@@ -27,6 +27,7 @@ function loadTurnstile() {
     turnstileScript = new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = false;
       script.onload = () => resolve();
       script.onerror = () => {
         script.remove();
