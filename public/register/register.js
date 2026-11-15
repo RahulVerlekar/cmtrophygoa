@@ -1,5 +1,5 @@
 import { constituencies, events, marathonDistances, rangoliCategories, genders, bloodGroups, tshirtSizes } from './events.js';
-import { ageOnDate, validateRegistration } from './validation.js';
+import { ageOnDate, validateRegistration } from './validation.js?v=participant-ids';
 
 const form = document.querySelector('#wizard');
 const category = document.querySelector('#category');
@@ -103,7 +103,7 @@ function updateIdentification(fieldset) {
   const age = ageOnDate(fieldset.querySelector('[name="dateOfBirth"]').value, today());
   const streetPlay = eventSelect.value === 'street-play';
   const groups = [
-    ['.epic-field', !streetPlay && age !== null && age >= 18],
+    ['.epic-field', age !== null && age >= 18],
     ['.minor-fields', !streetPlay && age !== null && age < 18],
     ['.college-id-field', streetPlay]
   ];

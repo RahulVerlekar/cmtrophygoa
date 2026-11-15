@@ -42,10 +42,11 @@ export function validateRegistration(data, today = new Intl.DateTimeFormat('en-C
     if (!tshirtSizes.includes(person.tshirtSize)) return `${label}: select a T-shirt size.`;
     if (data.event === 'street-play') {
       if (!isText(person.collegeId, 50)) return `${label}: enter a college ID number.`;
-    } else if (age < 18) {
+    }
+    if (age < 18 && data.event !== 'street-play') {
       if (typeof person.aadhaar !== 'string' || !/^\d{12}$/.test(person.aadhaar.replace(/\s/g, ''))) return `${label}: enter a 12-digit Aadhaar number.`;
       if (!isText(person.parentEpic, 50)) return `${label}: enter a parent's EPIC number.`;
-    } else if (!isText(person.epic, 50)) {
+    } else if (age >= 18 && !isText(person.epic, 50)) {
       return `${label}: enter an EPIC number.`;
     }
   }
@@ -70,10 +71,10 @@ export function sanitizedRegistration(data, today) {
     };
     if (data.event === 'badminton') result.ageCategory = age <= 30 ? '16–30' : age <= 50 ? '31–50' : '51 and above';
     if (data.event === 'street-play') result.collegeId = person.collegeId.trim();
-    else if (age < 18) {
+    if (age < 18 && data.event !== 'street-play') {
       result.aadhaar = person.aadhaar.replace(/\s/g, '');
       result.parentEpic = person.parentEpic.trim();
-    } else result.epic = person.epic.trim();
+    } else if (age >= 18) result.epic = person.epic.trim();
     return result;
   });
   const result = { category: event.category, event: data.event, participants, consent: true };

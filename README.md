@@ -29,6 +29,8 @@ python3 -m http.server 8000 --directory public
 
 Open <http://localhost:8000>.
 
+For a production-style build, run `node scripts/build.mjs` and serve `dist`. Local builds display `Version: development`.
+
 The static server does not run the registration endpoint. For local end-to-end testing, use `npx wrangler pages dev public` with a separate test Supabase project and a separate Turnstile widget configured for the local hostname. Configure `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `TURNSTILE_SITE_KEY`, and `TURNSTILE_SECRET_KEY` in a local `.dev.vars` file. Do not use real participant data for testing. Turnstile's dummy keys cannot be used for an end-to-end success test here: their Siteverify response does not return the actual hostname or action, both of which this endpoint checks.
 
 ## Deploy to Cloudflare Pages
@@ -36,7 +38,9 @@ The static server does not run the registration endpoint. For local end-to-end t
 Connect this project to Cloudflare Pages. For a Git-connected deployment, use these build settings:
 
 - Framework preset: **None**
-- Build command: leave empty
-- Build output directory: `public`
+- Build command: `node scripts/build.mjs`
+- Build output directory: `dist`
 
-The Pages build must include the root `functions` directory, and the registration environment variables described above must be configured for submissions. Uploading only the `public` directory through the dashboard's Direct Upload does not deploy Pages Functions, so registration will not work that way.
+The build displays the first eight characters of Cloudflare's `CF_PAGES_COMMIT_SHA` on each page and versions the page's CSS and JavaScript URLs. Static responses ask browsers to revalidate cached files on subsequent visits. Existing files cached under previous settings can remain stale until their original cache lifetime expires or the visitor clears their browser cache.
+
+The Pages build must include the root `functions` directory, and the registration environment variables described above must be configured for submissions. Uploading only the static output through the dashboard's Direct Upload does not deploy Pages Functions, so registration will not work that way.
