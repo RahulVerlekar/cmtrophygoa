@@ -3,56 +3,93 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Create a CM Trophy account.">
+    <meta name="description" content="Register for CM Trophy events.">
     <title>Register | CM Trophy</title>
-    <link rel="stylesheet" href="/styles.css">
-    <script src="/register/register.js" defer></script>
+    <link rel="stylesheet" href="/register/wizard.css">
+    <script type="module" src="/register/register.js"></script>
   </head>
   <body>
-    <div class="page">
-      <header class="site-header">
-        <a class="brand" href="/" aria-label="CM Trophy home">
-          <span class="brand-mark" aria-hidden="true">C</span>
-          <span>CM Trophy</span>
-        </a>
-        <nav aria-label="Main navigation">
-          <a class="nav-link" href="/">Back home <span aria-hidden="true">&rarr;</span></a>
-        </nav>
-      </header>
-
-      <main class="registration">
-        <div class="registration-intro">
-          <p class="eyebrow"><span aria-hidden="true"></span> Join us</p>
-          <h1>Let's get<br><em>you started.</em></h1>
-          <p class="hero-description">A fresh start begins here. Registration will be available soon.</p>
-        </div>
-
-        <section class="form-card" aria-labelledby="registration-title">
-          <p class="card-label">YOUR ACCOUNT</p>
-          <h2 id="registration-title">Create an account</h2>
-          <p class="card-description">Enter your details below to preview the registration form.</p>
-          <div class="notice">Account creation is not connected yet. Your details will not be sent or saved.</div>
-          <form id="registration-form">
-            <label for="email">Email address</label>
-            <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-
-            <label for="password">Password</label>
-            <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required>
-
-            <label for="confirm-password">Confirm password</label>
-            <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter your password again" required>
-
-            <button class="button button-primary form-button" type="submit" disabled>Continue <span aria-hidden="true">&rarr;</span></button>
-            <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
-            <noscript><p class="form-message">JavaScript is required to preview this form.</p></noscript>
-          </form>
+    <header class="header">
+      <a href="/">&#8592; Back to home</a>
+      <strong>CM Trophy 2.0</strong>
+    </header>
+    <main>
+      <p class="eyebrow">CM Trophy 2.0</p>
+      <h1>Event registration</h1>
+      <p id="progress" aria-live="polite"></p>
+      <p class="form-note">The registration dates printed on the rules sheets do not limit this form.</p>
+      <noscript><p>JavaScript is required for registration.</p></noscript>
+      <form id="wizard" novalidate hidden>
+        <section data-step="1">
+          <h2>Choose a category</h2>
+          <label>Category
+            <select id="category" required>
+              <option value="">Select a category</option>
+              <option>Sports</option>
+              <option>Cultural</option>
+            </select>
+          </label>
         </section>
-      </main>
-
-      <footer class="site-footer">
-        <span>CM Trophy</span>
-        <span>Made for what's next.</span>
-      </footer>
-    </div>
+        <section data-step="2" hidden>
+          <h2>Choose an event</h2>
+          <label>Event <select id="event" required><option value="">Select an event</option></select></label>
+          <label id="event-option-label" hidden>Event category <select id="event-option"></select></label>
+          <p id="event-description"></p>
+        </section>
+        <section data-step="3" hidden>
+          <h2>Primary participant</h2>
+          <p>For team events, the primary participant is the captain and counts as a team member.</p>
+          <label id="team-name-label" hidden>Team name <input id="team-name" maxlength="100" autocomplete="organization"></label>
+          <label id="college-name-label" hidden>College name <input id="college-name" maxlength="150"></label>
+          <label>Email address (optional) <input id="email" type="email" maxlength="254" autocomplete="email"></label>
+          <div id="primary"></div>
+        </section>
+        <section data-step="4" hidden>
+          <h2>Team roster</h2>
+          <p id="roster-description"></p>
+          <div id="roster"></div>
+          <button type="button" class="secondary" id="add-member">Add participant</button>
+        </section>
+        <section data-step="5" hidden>
+          <h2>Review and confirm</h2>
+          <div id="review"></div>
+          <p><a id="rules-link" href="/rules/">Read the event rules</a> before submitting.</p>
+          <label class="checkbox"><input id="consent" type="checkbox" required> <span id="consent-label">I have read the rules and confirm that I have permission to submit these details for all participants.</span></label>
+        </section>
+        <p id="error" class="error" role="alert"></p>
+        <div class="actions">
+          <button id="back" class="secondary" type="button">Back</button>
+          <button id="next" type="button">Continue &#8594;</button>
+          <button id="submit" type="submit" hidden>Submit registration</button>
+        </div>
+      </form>
+      <section id="success" hidden aria-live="polite">
+        <h2>Registration submitted</h2>
+        <p>Your registration number is <strong id="registration-number"></strong>. Please save it for your records.</p>
+        <p><a id="success-rules-link" href="/rules/">View event rules</a></p>
+      </section>
+    </main>
+    <template id="participant-template">
+      <fieldset class="participant">
+        <legend></legend>
+        <div class="fields">
+          <label>Full name <input name="fullName" maxlength="100" required></label>
+          <label>Date of birth <input name="dateOfBirth" type="date" required></label>
+          <label>Gender <select name="gender" required></select></label>
+          <label>Phone number <input name="phone" type="tel" maxlength="20" required></label>
+          <label>Constituency <select name="constituency" required></select></label>
+          <label>Blood group <select name="bloodGroup" required></select></label>
+          <label>T-shirt size <select name="tshirtSize" required></select></label>
+          <label class="epic-field" hidden>EPIC number <input name="epic" maxlength="50"></label>
+          <div class="minor-fields" hidden>
+            <label>Aadhaar number <input name="aadhaar" inputmode="numeric" maxlength="14" autocomplete="off"></label>
+            <label>Parent's EPIC number <input name="parentEpic" maxlength="50" autocomplete="off"></label>
+          </div>
+          <label class="college-id-field" hidden>College ID number <input name="collegeId" maxlength="50" autocomplete="off"></label>
+        </div>
+        <button type="button" class="secondary remove-member" hidden>Remove participant</button>
+      </fieldset>
+    </template>
+    <footer>For further details: <a href="mailto:goacmtrophy@gmail.com">goacmtrophy@gmail.com</a></footer>
   </body>
 </html>
