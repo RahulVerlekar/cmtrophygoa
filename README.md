@@ -41,6 +41,6 @@ Connect this project to Cloudflare Pages. For a Git-connected deployment, use th
 - Build command: `node scripts/build.mjs`
 - Build output directory: `dist`
 
-The build displays the first eight characters of Cloudflare's `CF_PAGES_COMMIT_SHA` on each page and versions the page's CSS and JavaScript URLs. Static responses ask browsers to revalidate cached files on subsequent visits. Existing files cached under previous settings can remain stale until their original cache lifetime expires or the visitor clears their browser cache.
+The build displays the first eight characters of Cloudflare's `CF_PAGES_COMMIT_SHA` on each page and versions the page's CSS and JavaScript URLs. Static responses ask browsers to revalidate cached files on subsequent visits. For a Cloudflare-proxied custom domain, set **Caching > Configuration > Browser Cache TTL** to **Respect Existing Headers**; a longer zone setting or cache rule can override these headers. Existing files cached under previous settings can remain stale until their original cache lifetime expires or the visitor clears their browser cache.
 
 The Pages build must include the root `functions` directory, and the registration environment variables described above must be configured for submissions. Uploading only the static output through the dashboard's Direct Upload does not deploy Pages Functions, so registration will not work that way.
