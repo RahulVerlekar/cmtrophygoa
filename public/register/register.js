@@ -244,6 +244,7 @@ function renderReview(data) {
   document.querySelector('#rules-link').href = rules;
   document.querySelector('#success-rules-link').href = rules;
   document.querySelector('#rules-link').textContent = data.event === 'marathon' ? 'View marathon information' : 'Read the event rules';
+  document.querySelector('#rules-link').setAttribute('aria-label', `${document.querySelector('#rules-link').textContent} (opens in a new tab)`);
   document.querySelector('#consent-label').textContent = data.event === 'marathon'
     ? 'I have reviewed the event information and confirm that I have permission to submit these details.'
     : 'I have read the rules and confirm that I have permission to submit these details for all participants.';

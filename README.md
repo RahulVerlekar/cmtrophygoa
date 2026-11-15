@@ -4,7 +4,7 @@ A Cloudflare Pages site with an event registration wizard and a Pages Function t
 
 ## Event rules
 
-The homepage links to event rules at `/rules/?event=<event>`. The sheets are images rendered from the supplied PDF; select a sheet to view it at full size. The PDF did not include marathon rules, and the carrom and badminton sheets contain inconsistent registration dates.
+The homepage links to event rules at `/rules/?event=<event>`. The sheets are images rendered from the supplied PDF; select a sheet to view it at full size. The PDF did not include marathon rules, so the homepage's Marathon item does not link to a rules page. The carrom and badminton sheets contain inconsistent registration dates.
 
 Homepage links include `allow_register=true` to show the registration link on rules pages. Direct rules-page URLs can also use this flag. It only controls visibility and is not an authorization mechanism.
 
