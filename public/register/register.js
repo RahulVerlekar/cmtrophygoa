@@ -104,7 +104,8 @@ function updateIdentification(fieldset) {
   const streetPlay = eventSelect.value === 'street-play';
   const groups = [
     ['.epic-field', age !== null && age >= 18],
-    ['.minor-fields', !streetPlay && age !== null && age < 18],
+    ['.aadhaar-field', !streetPlay && age !== null && age < 18],
+    ['.parent-epic-field', age !== null && age < 18],
     ['.college-id-field', streetPlay]
   ];
   groups.forEach(([selector, visible]) => {

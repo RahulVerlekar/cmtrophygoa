@@ -66,6 +66,14 @@ test('requires applicable minor and street-play IDs and removes unused fields', 
   assert.equal(sanitizedRegistration(street, '2026-11-16').data.participants[0].collegeId, 'COLLEGE1');
   const eighteen = { ...street, participants: street.participants.map((p, index) => index === 0 ? { ...p, dateOfBirth: '2008-11-16', epic: '' } : p) };
   assert.match(validateRegistration(eighteen, '2026-11-16'), /Primary participant: enter an EPIC/);
+  const streetMinor = { ...street, participants: street.participants.map((p, index) => index === 1 ? { ...p, dateOfBirth: '2010-01-01', parentEpic: '' } : p) };
+  assert.match(validateRegistration(streetMinor, '2026-11-16'), /Participant 2: enter a parent's EPIC/);
+  streetMinor.participants[1].parentEpic = ' PARENT1 ';
+  const savedMinor = sanitizedRegistration(streetMinor, '2026-11-16').data.participants[1];
+  assert.equal(savedMinor.parentEpic, 'PARENT1');
+  assert.equal(savedMinor.collegeId, 'COLLEGE1');
+  assert.equal(Object.hasOwn(savedMinor, 'epic'), false);
+  assert.equal(Object.hasOwn(savedMinor, 'aadhaar'), false);
 });
 
 test('derives badminton age category from date of birth', () => {

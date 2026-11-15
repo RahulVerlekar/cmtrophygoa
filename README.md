@@ -19,6 +19,8 @@ Turnstile reduces automated abuse but does not stop all spam. Add a Cloudflare r
 
 Registrations include government ID numbers and blood groups: restrict organizer access, define retention and handling policies, and confirm that collection is appropriate for your use case. Monitor Cloudflare and Supabase usage, plan secure backups, and note that retries after an unknown submission status can create duplicate registrations.
 
+Every participant aged 18 or older must provide their EPIC number; participants under 18 must provide a parent's EPIC number. Minors also provide Aadhaar except for street play, where a college ID is required for every participant.
+
 ## Run locally
 
 Serve the `public` directory with any static HTTP server to view the pages. For example:

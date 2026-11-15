@@ -86,10 +86,8 @@
           <label>Blood group <select name="bloodGroup" required></select></label>
           <label>T-shirt size <select name="tshirtSize" required></select></label>
           <label class="epic-field" hidden>EPIC number <input name="epic" maxlength="50"></label>
-          <div class="minor-fields" hidden>
-            <label>Aadhaar number <input name="aadhaar" inputmode="numeric" maxlength="14" autocomplete="off"></label>
-            <label>Parent's EPIC number <input name="parentEpic" maxlength="50" autocomplete="off"></label>
-          </div>
+          <label class="aadhaar-field" hidden>Aadhaar number <input name="aadhaar" inputmode="numeric" maxlength="14" autocomplete="off"></label>
+          <label class="parent-epic-field" hidden>Parent's EPIC number <input name="parentEpic" maxlength="50" autocomplete="off"></label>
           <label class="college-id-field" hidden>College ID number <input name="collegeId" maxlength="50" autocomplete="off"></label>
         </div>
         <button type="button" class="secondary remove-member" hidden>Remove participant</button>
