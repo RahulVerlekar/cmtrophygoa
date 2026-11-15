@@ -12,9 +12,86 @@ const primary = document.querySelector('#primary');
 const roster = document.querySelector('#roster');
 const error = document.querySelector('#error');
 const consent = document.querySelector('#consent');
+const verificationStatus = document.querySelector('#verification-status');
+const retryVerification = document.querySelector('#retry-verification');
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 let step = 1;
 let configuredEvent = '';
+let turnstileToken = '';
+let turnstileWidget = null;
+let turnstileScript;
+let verificationAttempt = 0;
+
+function loadTurnstile() {
+  if (!turnstileScript) {
+    turnstileScript = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.onload = () => resolve();
+      script.onerror = () => {
+        script.remove();
+        reject(new Error('Turnstile script could not be loaded.'));
+      };
+      document.head.append(script);
+    }).catch((loadError) => {
+      turnstileScript = null;
+      throw loadError;
+    });
+  }
+  return turnstileScript;
+}
+
+function clearVerification() {
+  verificationAttempt++;
+  turnstileToken = '';
+  if (turnstileWidget !== null) window.turnstile.remove(turnstileWidget);
+  turnstileWidget = null;
+}
+
+async function setupVerification() {
+  clearVerification();
+  const attempt = verificationAttempt;
+  verificationStatus.textContent = 'Loading security check...';
+  retryVerification.hidden = true;
+  try {
+    const configResponse = await fetch('/api/turnstile-config', { cache: 'no-store' });
+    if (!configResponse.ok) throw new Error('Verification configuration is unavailable.');
+    const config = await configResponse.json();
+    if (typeof config.siteKey !== 'string' || !config.siteKey) throw new Error('Verification configuration is invalid.');
+    await loadTurnstile();
+    await new Promise((resolve) => window.turnstile.ready(resolve));
+    if (attempt !== verificationAttempt || step !== 5) return;
+    verificationStatus.textContent = 'Complete the security check before submitting.';
+    turnstileWidget = window.turnstile.render('#turnstile-widget', {
+      sitekey: config.siteKey,
+      action: 'registration',
+      size: 'compact',
+      callback: (token) => {
+        if (attempt !== verificationAttempt) return;
+        turnstileToken = token;
+        verificationStatus.textContent = 'Security check complete.';
+        retryVerification.hidden = true;
+      },
+      'expired-callback': () => {
+        if (attempt !== verificationAttempt) return;
+        turnstileToken = '';
+        verificationStatus.textContent = 'Security check expired. Please retry it.';
+        retryVerification.hidden = false;
+      },
+      'error-callback': () => {
+        if (attempt !== verificationAttempt) return;
+        turnstileToken = '';
+        verificationStatus.textContent = 'Security check failed. Please retry it.';
+        retryVerification.hidden = false;
+      }
+    });
+  } catch (setupError) {
+    if (attempt !== verificationAttempt || step !== 5) return;
+    console.error('Registration security check could not be loaded.');
+    verificationStatus.textContent = 'Security check could not be loaded. Please retry.';
+    retryVerification.hidden = false;
+  }
+}
 
 function fillOptions(select, values, placeholder) {
   select.replaceChildren(new Option(placeholder, ''));
@@ -182,7 +259,10 @@ document.querySelector('#add-member').addEventListener('click', () => {
   }
 });
 document.querySelector('#back').addEventListener('click', () => {
-  if (step === 5) consent.checked = false;
+  if (step === 5) {
+    consent.checked = false;
+    clearVerification();
+  }
   showStep(step === 5 && events[eventSelect.value].max === 1 ? 3 : step - 1);
 });
 document.querySelector('#next').addEventListener('click', () => {
@@ -198,7 +278,9 @@ document.querySelector('#next').addEventListener('click', () => {
     renderReview(data);
   }
   showStep(next);
+  if (next === 5) setupVerification();
 });
+retryVerification.addEventListener('click', setupVerification);
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -209,19 +291,29 @@ form.addEventListener('submit', async (event) => {
     error.textContent = validationError;
     return;
   }
+  if (!turnstileToken) {
+    error.textContent = 'Please complete the security check before submitting.';
+    return;
+  }
   const button = document.querySelector('#submit');
+  const back = document.querySelector('#back');
   button.disabled = true;
+  back.disabled = true;
+  retryVerification.disabled = true;
   error.textContent = '';
   let result;
   try {
     result = await fetch('/api/registrations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify({ ...data, turnstileToken })
     });
   } catch (networkError) {
     error.textContent = 'The submission status is unknown. Please contact the organisers before trying again.';
     button.disabled = false;
+    back.disabled = false;
+    retryVerification.disabled = false;
+    setupVerification();
     return;
   }
   let body;
@@ -230,13 +322,20 @@ form.addEventListener('submit', async (event) => {
   } catch (parseError) {
     error.textContent = 'The submission status is unknown. Please contact the organisers before trying again.';
     button.disabled = false;
+    back.disabled = false;
+    retryVerification.disabled = false;
+    setupVerification();
     return;
   }
   if (!result.ok || typeof body.registrationNumber !== 'string' || !/^CM-[0-9A-F-]{36}$/.test(body.registrationNumber)) {
     error.textContent = typeof body.error === 'string' ? body.error : 'The submission status is unknown. Please contact the organisers before trying again.';
     button.disabled = false;
+    back.disabled = false;
+    retryVerification.disabled = false;
+    setupVerification();
     return;
   }
+  clearVerification();
   document.querySelector('#registration-number').textContent = body.registrationNumber;
   form.hidden = true;
   document.querySelector('#progress').textContent = '';

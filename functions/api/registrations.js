@@ -13,8 +13,8 @@ export async function onRequestPost({ request, env }) {
   if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
     return response(415, { error: 'Expected a JSON request.' });
   }
-  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
-    console.error('Registration storage is not configured.');
+  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET_KEY) {
+    console.error('Registration storage or verification is not configured.');
     return response(503, { error: 'Registration is not available yet. Please try again later.' });
   }
 
@@ -49,6 +49,33 @@ export async function onRequestPost({ request, env }) {
   }
   const result = sanitizedRegistration(input);
   if (result.error) return response(400, { error: result.error });
+
+  if (typeof input.turnstileToken !== 'string' || input.turnstileToken.length === 0 || input.turnstileToken.length > 2048) {
+    return response(400, { error: 'Please complete the security check.' });
+  }
+  let verification;
+  try {
+    const verificationResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: env.TURNSTILE_SECRET_KEY,
+        response: input.turnstileToken,
+        remoteip: request.headers.get('CF-Connecting-IP') || undefined
+      })
+    });
+    if (!verificationResponse.ok) {
+      console.error(`Registration verification returned status ${verificationResponse.status}.`);
+      return response(503, { error: 'The security check is temporarily unavailable. Please try again.' });
+    }
+    verification = await verificationResponse.json();
+  } catch (error) {
+    console.error('Registration verification could not be completed.');
+    return response(503, { error: 'The security check is temporarily unavailable. Please try again.' });
+  }
+  if (verification?.success !== true || verification.hostname !== new URL(request.url).hostname || verification.action !== 'registration') {
+    return response(403, { error: 'Security check failed. Please try again.' });
+  }
 
   const number = `CM-${crypto.randomUUID().toUpperCase()}`;
   let databaseResponse;

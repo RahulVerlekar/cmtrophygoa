@@ -12,9 +12,12 @@ Add `allow_register=true` to the homepage or a rules-page URL to show the regist
 
 1. In the Supabase project's SQL Editor, run [supabase/schema.sql](supabase/schema.sql) to create the private registration table. Anonymous and authenticated clients cannot access the table; the Pages Function writes with a server-only secret.
 2. In the Cloudflare Pages project settings, add `SUPABASE_URL` as a variable and `SUPABASE_SECRET_KEY` as an encrypted secret for the intended environment. Use the project's Supabase URL and its `sb_secret_...` key from Supabase Settings > API Keys. Never put the secret in client code or source control. The key provides elevated access to the entire Supabase project.
-3. Redeploy after setting these values. Confirm the Pages Function works using test data and verify the resulting row in the Supabase dashboard before opening registrations.
+3. In Cloudflare, create a Turnstile widget for every hostname used to access registration (for example `cmtrophygoa.com` and the project's `pages.dev` hostname). Add its public site key as `TURNSTILE_SITE_KEY` and its secret as an encrypted `TURNSTILE_SECRET_KEY` in the Pages project's environment. Use the same widget for both keys; never put the secret in client code or source control.
+4. Redeploy after setting these values. Confirm the security check and registration work using test data and verify the resulting row in the Supabase dashboard before opening registrations. Submissions fail closed if verification is missing, unavailable, or unsuccessful.
 
-The public endpoint accepts unauthenticated submissions and has no built-in CAPTCHA or rate limiting. Configure appropriate Cloudflare abuse protection before production. Registrations include government ID numbers and blood groups: restrict organizer access, define retention and handling policies, and confirm that collection is appropriate for your use case.
+Turnstile reduces automated abuse but does not stop all spam. Add a Cloudflare rate-limiting rule for the custom domain's `/api/registrations` path, starting with a conservative threshold such as 30 requests per IP per 10 seconds and a 10-second block. Cloudflare's Free plan provides one rate-limiting rule; review its availability in the domain's security settings and monitor false positives, especially for participants sharing a network. A rule on the custom domain does not protect the separate `pages.dev` hostname.
+
+Registrations include government ID numbers and blood groups: restrict organizer access, define retention and handling policies, and confirm that collection is appropriate for your use case. Monitor Cloudflare and Supabase usage, plan secure backups, and note that retries after an unknown submission status can create duplicate registrations.
 
 ## Run locally
 
@@ -26,7 +29,7 @@ python3 -m http.server 8000 --directory public
 
 Open <http://localhost:8000>.
 
-The static server does not run the registration endpoint. For local end-to-end testing, use `npx wrangler pages dev public` with a separate test Supabase project and configure `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in a local `.dev.vars` file. Do not use real participant data for testing.
+The static server does not run the registration endpoint. For local end-to-end testing, use `npx wrangler pages dev public` with a separate test Supabase project and a separate Turnstile widget configured for the local hostname. Configure `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `TURNSTILE_SITE_KEY`, and `TURNSTILE_SECRET_KEY` in a local `.dev.vars` file. Do not use real participant data for testing. Turnstile's dummy keys cannot be used for an end-to-end success test here: their Siteverify response does not return the actual hostname or action, both of which this endpoint checks.
 
 ## Deploy to Cloudflare Pages
 

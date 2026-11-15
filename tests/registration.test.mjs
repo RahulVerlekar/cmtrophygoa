@@ -11,6 +11,9 @@ const { validateRegistration, sanitizedRegistration } = await import(validationU
 const handlerSource = (await readFile(new URL('../functions/api/registrations.js', import.meta.url), 'utf8'))
   .replace("'../../public/register/validation.js'", `'${validationUrl}'`);
 const { onRequestPost } = await import(asModule(handlerSource));
+const configSource = await readFile(new URL('../functions/api/turnstile-config.js', import.meta.url), 'utf8');
+const { onRequestGet: getTurnstileConfig } = await import(asModule(configSource));
+const env = { SUPABASE_URL: 'https://database.example.test', SUPABASE_SECRET_KEY: 'test-secret', TURNSTILE_SITE_KEY: 'test-site-key', TURNSTILE_SECRET_KEY: 'test-turnstile-secret' };
 
 const adult = {
   fullName: 'Test Participant',
@@ -67,28 +70,71 @@ test('derives badminton age category from date of birth', () => {
 test('endpoint fails closed when storage is unconfigured or input is invalid', async () => {
   const request = (body) => new Request('https://example.test/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   assert.equal((await onRequestPost({ request: request(registration()), env: {} })).status, 503);
-  const env = { SUPABASE_URL: 'https://example.test', SUPABASE_SECRET_KEY: 'test-secret' };
   assert.equal((await onRequestPost({ request: request(registration({ consent: false })), env })).status, 400);
   const oversized = new Request('https://example.test/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: 'x'.repeat(100001) });
   assert.equal((await onRequestPost({ request: oversized, env })).status, 413);
 });
 
+test('exposes only the public verification key when configured', async () => {
+  assert.equal(getTurnstileConfig({ env: {} }).status, 503);
+  const config = getTurnstileConfig({ env });
+  assert.deepEqual(await config.json(), { siteKey: 'test-site-key' });
+  assert.equal(config.headers.get('Cache-Control'), 'no-store');
+});
+
+test('rejects missing, invalid and unavailable security checks without writing', async () => {
+  const originalFetch = globalThis.fetch;
+  const request = (token) => new Request('https://example.test/api/registrations', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...registration(), turnstileToken: token })
+  });
+  try {
+    globalThis.fetch = async () => { throw new Error('Unexpected request'); };
+    assert.equal((await onRequestPost({ request: request(), env })).status, 400);
+    assert.equal((await onRequestPost({ request: request('x'.repeat(2049)), env })).status, 400);
+    for (const verification of [
+      { success: false },
+      { success: true, hostname: 'other.example.test', action: 'registration' },
+      { success: true, hostname: 'example.test', action: 'other' }
+    ]) {
+      globalThis.fetch = async (url) => {
+        assert.equal(url, 'https://challenges.cloudflare.com/turnstile/v0/siteverify');
+        return Response.json(verification);
+      };
+      assert.equal((await onRequestPost({ request: request('test-token'), env })).status, 403);
+    }
+    globalThis.fetch = async () => new Response(null, { status: 500 });
+    assert.equal((await onRequestPost({ request: request('test-token'), env })).status, 503);
+    globalThis.fetch = async () => { throw new Error('Network error'); };
+    assert.equal((await onRequestPost({ request: request('test-token'), env })).status, 503);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('endpoint returns a number only after successful storage', async () => {
   const originalFetch = globalThis.fetch;
-  const env = { SUPABASE_URL: 'https://example.test', SUPABASE_SECRET_KEY: 'test-secret' };
-  const request = () => new Request('https://example.test/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registration()) });
+  const request = () => new Request('https://example.test/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.1' }, body: JSON.stringify({ ...registration(), turnstileToken: 'test-token' }) });
   try {
     globalThis.fetch = async (url, options) => {
-      assert.equal(url, 'https://example.test/rest/v1/cm_trophy_registrations');
+      if (url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify') {
+        assert.deepEqual(JSON.parse(options.body), { secret: 'test-turnstile-secret', response: 'test-token', remoteip: '192.0.2.1' });
+        return Response.json({ success: true, hostname: 'example.test', action: 'registration' });
+      }
+      assert.equal(url, 'https://database.example.test/rest/v1/cm_trophy_registrations');
       assert.equal(options.headers.apikey, 'test-secret');
       assert.equal(Object.hasOwn(options.headers, 'Authorization'), false);
-      assert.equal(JSON.parse(options.body).details.participants.length, 1);
+      const details = JSON.parse(options.body).details;
+      assert.equal(details.participants.length, 1);
+      assert.equal(Object.hasOwn(details, 'turnstileToken'), false);
       return new Response(null, { status: 201 });
     };
     const success = await onRequestPost({ request: request(), env });
     assert.equal(success.status, 201);
     assert.match((await success.json()).registrationNumber, /^CM-[0-9A-F-]{36}$/);
-    globalThis.fetch = async () => new Response(null, { status: 500 });
+    globalThis.fetch = async (url) => url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+      ? Response.json({ success: true, hostname: 'example.test', action: 'registration' })
+      : new Response(null, { status: 500 });
     const failure = await onRequestPost({ request: request(), env });
     assert.equal(failure.status, 502);
     assert.equal(Object.hasOwn(await failure.json(), 'registrationNumber'), false);
