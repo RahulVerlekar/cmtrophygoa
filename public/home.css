@@ -26,11 +26,14 @@ body {
   border: 0;
 }
 
-.categories { position: relative; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 10px 4%; background: #fff7e2; }
-.categories-message { display: flex; align-items: center; gap: 12px; margin-right: auto; color: #a71f22; font-size: clamp(13px, 2vw, 19px); font-weight: 900; line-height: 1.05; text-transform: uppercase; }
+.categories { position: relative; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 10px 4%; background: #ffd414; }
+.top-logo { display: block; width: 52px; height: 52px; flex: none; }
+.top-party-name { color: #111; font-size: 13px; font-weight: 700; line-height: 1.05; }
+.categories-message { display: flex; align-items: center; gap: 12px; margin-right: auto; color: #a71f22; font-size: clamp(13px, 2vw, 19px); font-weight: 900; line-height: 1.05; text-align: left; text-transform: uppercase; }
 .categories-message span + span { padding-left: 12px; border-left: 2px solid #a71f22; }
 .categories details { position: relative; }
-.categories summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid #e8c68a; border-radius: 4px; background: #fff; color: #8d291e; font-weight: 700; cursor: pointer; list-style: none; }
+.categories summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid #9a261b; border-radius: 4px; background: #a71f22; color: #fff; font-weight: 700; cursor: pointer; list-style: none; }
+.categories summary:hover { background: #85191c; }
 .categories summary::-webkit-details-marker { display: none; }
 .categories summary::after { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); }
 .categories summary:focus-visible { outline: 3px solid #6b2118; outline-offset: 3px; }
@@ -71,21 +74,21 @@ body {
 .organiser p { margin: 0; color: #df4a24; font-size: clamp(14px, 2.5vw, 25px); font-weight: 900; font-style: italic; line-height: 1.05; text-align: center; text-transform: uppercase; }
 .registration { padding: 12px 0 0; text-align: right; }
 .registration p { margin: 9px 0 0; color: #6f4833; font-size: 13px; }
+.registration .mobile-message { display: none; }
 .register-button { display: inline-flex; align-items: center; gap: 30px; padding: 14px 28px; border-radius: 4px; background: #ba2c1e; color: white; font-size: 16px; font-weight: 700; text-decoration: none; }
 .register-button:hover { background: #8d1c14; }
 .register-button:focus-visible, .contact a:focus-visible { outline: 3px solid #6b2118; outline-offset: 3px; }
-
-.footer-banner { display: flex; align-items: stretch; background: #ffd414; }
-.footer-brand { display: flex; align-items: center; gap: 8px; margin-left: auto; padding: 8px 18px; background: #fff7e2; color: #111; font-size: clamp(12px, 1.6vw, 17px); font-weight: 700; line-height: 1.05; }
-.footer-brand img { width: clamp(64px, 8vw, 82px); height: auto; }
 
 .contact { padding: 18px 5%; background: #fff7e2; }
 .contact h2 { margin: 0 0 6px; color: #24201b; font-size: 16px; text-transform: uppercase; }
 .contact a { display: inline-block; padding: 4px 8px; background: #342d26; color: #ffdb2e; font-weight: 700; text-decoration: none; }
 
 @media (max-width: 600px) {
-  .categories-message { flex-direction: column; align-items: flex-start; gap: 4px; font-size: 11px; }
-  .categories-message span + span { padding-left: 0; border-left: 0; }
+  .top-logo { width: 38px; height: 38px; }
+  .top-party-name { display: none; }
+  .categories-message { display: none; }
+  .categories details:first-of-type { margin-left: auto; }
+  .registration .mobile-message { display: block; color: #9c5e40; font-size: 12px; line-height: 1.4; }
   .site-header { padding: 3% 3% 0; }
   .left-header { width: 33%; }
   .header-right { width: 54%; }
@@ -93,6 +96,4 @@ body {
   .portraits img { width: 19%; border-width: 1px; }
   .hero { margin-top: 0; }
   .hero-art { width: 80%; }
-  .footer-brand { padding: 6px; gap: 4px; }
-  .footer-brand img { width: 52px; }
 }
