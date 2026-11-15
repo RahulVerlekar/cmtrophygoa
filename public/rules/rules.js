@@ -35,13 +35,12 @@ if (!event) {
   }
 
   if (event.pages.length === 0) {
-    message.textContent = 'Marathon rules were not included in the supplied rules document. Please contact the organisers for details.';
+    message.textContent = 'Marathon rules are not available yet. Please contact the organisers for details.';
   } else {
-    message.textContent = 'These are the original rules sheets. Select a page to open a larger image.';
     if (event.dateWarning) {
       const warning = document.createElement('p');
       warning.className = 'warning';
-      warning.textContent = 'The registration dates on this sheet appear inconsistent. Please confirm the dates with the organisers.';
+      warning.textContent = 'The printed registration dates contain errors. Please contact the organisers for details.';
       message.after(warning);
     }
 
