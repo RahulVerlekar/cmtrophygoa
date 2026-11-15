@@ -27,6 +27,8 @@ body {
 }
 
 .site-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -35,7 +37,8 @@ body {
 }
 
 .left-header { width: 29%; height: auto; }
-.portraits { display: flex; justify-content: flex-end; gap: 1.4%; width: 40%; padding-top: 1%; }
+.header-right { width: 40%; }
+.portraits { display: flex; justify-content: flex-end; gap: 1.4%; width: 100%; padding-top: 1%; }
 .portraits img { width: 18.5%; aspect-ratio: 1; object-fit: cover; object-position: center top; border: 2px solid white; background: #f5e1bc; }
 .portraits .portrait-hemang { object-position: center 27%; }
 
@@ -56,7 +59,7 @@ body {
 .organiser { display: flex; justify-content: center; align-items: center; gap: 1%; margin: -1% auto 0; padding: 0 15px; }
 .organiser img { width: clamp(42px, 7%, 70px); height: auto; }
 .organiser p { margin: 0; color: #df4a24; font-size: clamp(14px, 2.5vw, 25px); font-weight: 900; font-style: italic; line-height: 1.05; text-align: center; text-transform: uppercase; }
-.registration { padding: 24px 20px 28px; text-align: center; }
+.registration { padding: 12px 0 0; text-align: right; }
 .registration p { margin: 9px 0 0; color: #6f4833; font-size: 13px; }
 .register-button { display: inline-flex; align-items: center; gap: 30px; padding: 14px 28px; border-radius: 4px; background: #ba2c1e; color: white; font-size: 16px; font-weight: 700; text-decoration: none; }
 .register-button:hover { background: #8d1c14; }
@@ -79,7 +82,8 @@ body {
 @media (max-width: 600px) {
   .site-header { padding: 3% 3% 0; }
   .left-header { width: 33%; }
-  .portraits { width: 54%; gap: 1%; }
+  .header-right { width: 54%; }
+  .portraits { gap: 1%; }
   .portraits img { width: 19%; border-width: 1px; }
   .hero { margin-top: 0; }
   .hero-art { width: 80%; }
