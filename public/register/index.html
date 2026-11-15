@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Create a CM Trophy account.">
+    <title>Register | CM Trophy</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/register/register.js" defer></script>
+  </head>
+  <body>
+    <div class="page">
+      <header class="site-header">
+        <a class="brand" href="/" aria-label="CM Trophy home">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <span>CM Trophy</span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a class="nav-link" href="/">Back home <span aria-hidden="true">&rarr;</span></a>
+        </nav>
+      </header>
+
+      <main class="registration">
+        <div class="registration-intro">
+          <p class="eyebrow"><span aria-hidden="true"></span> Join us</p>
+          <h1>Let's get<br><em>you started.</em></h1>
+          <p class="hero-description">A fresh start begins here. Registration will be available soon.</p>
+        </div>
+
+        <section class="form-card" aria-labelledby="registration-title">
+          <p class="card-label">YOUR ACCOUNT</p>
+          <h2 id="registration-title">Create an account</h2>
+          <p class="card-description">Enter your details below to preview the registration form.</p>
+          <div class="notice">Account creation is not connected yet. Your details will not be sent or saved.</div>
+          <form id="registration-form">
+            <label for="email">Email address</label>
+            <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required>
+
+            <label for="confirm-password">Confirm password</label>
+            <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter your password again" required>
+
+            <button class="button button-primary form-button" type="submit" disabled>Continue <span aria-hidden="true">&rarr;</span></button>
+            <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+            <noscript><p class="form-message">JavaScript is required to preview this form.</p></noscript>
+          </form>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <span>CM Trophy</span>
+        <span>Made for what's next.</span>
+      </footer>
+    </div>
+  </body>
+</html>
