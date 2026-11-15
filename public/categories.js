@@ -1,5 +1,13 @@
 const categories = document.querySelectorAll('.categories details');
 
+if (new URLSearchParams(window.location.search).get('allow_register') === 'true') {
+  document.querySelectorAll('.categories a').forEach((link) => {
+    const url = new URL(link.href);
+    url.searchParams.set('allow_register', 'true');
+    link.href = url.href;
+  });
+}
+
 function closeCategories(except) {
   categories.forEach((category) => {
     if (category !== except) {

@@ -32,12 +32,15 @@ body {
 .categories-message { display: flex; align-items: center; gap: 12px; margin-right: auto; color: #a71f22; font-size: clamp(13px, 2vw, 19px); font-weight: 900; line-height: 1.05; text-align: left; text-transform: uppercase; }
 .categories-message span + span { padding-left: 12px; border-left: 2px solid #a71f22; }
 .categories details { position: relative; }
-.categories summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid #9a261b; border-radius: 4px; background: #a71f22; color: #fff; font-weight: 700; cursor: pointer; list-style: none; }
-.categories summary:hover { background: #85191c; }
+.categories summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid #d3a33c; border-radius: 4px; background: #ffebaa; color: #81251c; font-weight: 700; cursor: pointer; list-style: none; }
+.categories summary:hover { background: #ffe294; }
 .categories summary::-webkit-details-marker { display: none; }
 .categories summary::after { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); }
 .categories summary:focus-visible { outline: 3px solid #6b2118; outline-offset: 3px; }
 .categories ul { position: absolute; top: 100%; right: 0; z-index: 1; min-width: 180px; margin: 0; padding: 12px 12px 12px 32px; border: 1px solid #e8c68a; border-radius: 4px; background: #fffaf0; color: #24201b; font-size: 15px; line-height: 1.8; box-shadow: 0 4px 12px #542a1b33; }
+.categories a { color: #81251c; text-decoration: none; }
+.categories a:hover { text-decoration: underline; }
+.categories a:focus-visible { outline: 3px solid #6b2118; outline-offset: 3px; }
 
 .site-header {
   position: relative;
@@ -86,8 +89,7 @@ body {
 @media (max-width: 600px) {
   .top-logo { width: 38px; height: 38px; }
   .top-party-name { display: none; }
-  .categories summary { border-color: #d3a33c; background: #ffebaa; color: #81251c; font-size: 14px; }
-  .categories summary:hover { background: #ffe294; }
+  .categories summary { font-size: 14px; }
   .categories-message { display: none; }
   .categories details:first-of-type { margin-left: auto; }
   .registration .mobile-message { display: block; color: #9c5e40; font-size: 12px; line-height: 1.4; }
