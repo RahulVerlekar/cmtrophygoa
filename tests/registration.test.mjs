@@ -192,6 +192,15 @@ test('validates individual selections and required participant fields', () => {
   assert.match(validateRegistration(registration({ participants: [{ ...adult, dateOfBirth: '2024-02-31' }] }), '2026-11-16'), /date of birth/);
 });
 
+test('email is optional and requires the same complete format for all registrations', () => {
+  for (const email of ['', 'captain@example.com']) {
+    assert.equal(validateRegistration(registration({ email }), '2026-11-16'), null);
+  }
+  for (const email of ['captain@example', 'captain@@example.com']) {
+    assert.match(validateRegistration(registration({ email }), '2026-11-16'), /valid email address.*leave it blank/);
+  }
+});
+
 test('enforces team limits and constituency, counting the captain', () => {
   const football = registration({ category: 'Sports', event: 'football-men', teamName: 'Test team', participants: Array.from({ length: 11 }, () => ({ ...adult, gender: 'Male' })) });
   assert.equal(validateRegistration(football, '2026-11-16'), null);

@@ -24,6 +24,8 @@ Registrations include government ID numbers and blood groups: restrict organizer
 
 Every participant aged 18 or older must provide their EPIC number; participants under 18 must provide a parent's EPIC number. Minors also provide Aadhaar except for street play, where a college ID is required for every participant.
 
+Constituency is selected once at the start and applies to all participants, except street-play roster members, who provide their own. Cricket's Team Leader / Captain is the primary participant and counts toward the team size.
+
 ## Run locally
 
 Serve the `public` directory with any static HTTP server to view the pages. For example:

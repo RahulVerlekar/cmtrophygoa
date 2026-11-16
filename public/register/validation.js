@@ -4,6 +4,13 @@ function isText(value, maxLength) {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength;
 }
 
+export function validateEmail(email) {
+  if (email && (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    return 'Enter a valid email address, or leave it blank.';
+  }
+  return null;
+}
+
 export function ageOnDate(dateOfBirth, today) {
   if (typeof dateOfBirth !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return null;
   const date = new Date(`${dateOfBirth}T00:00:00Z`);
@@ -21,7 +28,8 @@ export function validateRegistration(data, today = new Intl.DateTimeFormat('en-C
     return `This event requires ${event.min === event.max ? event.min : `${event.min}–${event.max}`} participant(s), including the captain.`;
   }
   if (event.max > 1 && !isText(data.teamName, 100)) return 'Enter a team name.';
-  if (data.email && (typeof data.email !== 'string' || data.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))) return 'Enter a valid email address.';
+  const emailError = validateEmail(data.email);
+  if (emailError) return emailError;
   if (data.event === 'marathon' && !marathonDistances.includes(data.eventOption)) return 'Select a marathon distance.';
   if (data.event === 'rangoli' && !rangoliCategories.includes(data.eventOption)) return 'Select a rangoli category.';
   if (data.event === 'street-play' && !isText(data.collegeName, 150)) return 'Enter the college name.';

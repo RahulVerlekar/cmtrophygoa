@@ -1,8 +1,9 @@
 import { constituencies, events, marathonDistances, rangoliCategories, genders, bloodGroups, tshirtSizes } from './events.js';
-import { ageOnDate, validateRegistration } from './validation.js?v=participant-ids';
+import { ageOnDate, validateEmail, validateRegistration } from './validation.js?v=registration-fields';
 
 const form = document.querySelector('#wizard');
 const category = document.querySelector('#category');
+const registrationConstituency = document.querySelector('#registration-constituency');
 const eventSelect = document.querySelector('#event');
 const eventOption = document.querySelector('#event-option');
 const optionLabel = document.querySelector('#event-option-label');
@@ -115,6 +116,19 @@ function updateIdentification(fieldset) {
   });
 }
 
+function configureParticipant(fieldset, isPrimary) {
+  const fields = [
+    ['.gender-field', eventSelect.value !== 'cricket'],
+    ['.constituency-field', eventSelect.value === 'street-play' && !isPrimary]
+  ];
+  fields.forEach(([selector, visible]) => {
+    const group = fieldset.querySelector(selector);
+    group.hidden = !visible;
+    group.querySelector('select').required = visible;
+  });
+  updateIdentification(fieldset);
+}
+
 function makeParticipant(isPrimary) {
   const fieldset = document.querySelector('#participant-template').content.firstElementChild.cloneNode(true);
   fillOptions(fieldset.querySelector('[name="gender"]'), genders, 'Select gender');
@@ -129,7 +143,7 @@ function makeParticipant(isPrimary) {
     fieldset.remove();
     updateRoster();
   });
-  updateIdentification(fieldset);
+  configureParticipant(fieldset, isPrimary);
   return fieldset;
 }
 
@@ -166,18 +180,23 @@ function configureEvent() {
   document.querySelector('#event-description').textContent = eventSelect.value === 'marathon'
     ? 'This is an individual event. Marathon rules have not yet been provided; contact the organisers for details.'
     : event.max > 1 ? `Team size: ${event.min}–${event.max}, including the captain.` : 'This is an individual event.';
+  const primaryTitle = eventSelect.value === 'cricket' ? 'Team Leader / Captain' : 'Primary participant';
+  document.querySelector('#primary-heading').textContent = primaryTitle;
+  primary.querySelector('legend').textContent = primaryTitle;
   if (configuredEvent !== eventSelect.value) {
     configuredEvent = eventSelect.value;
     roster.replaceChildren();
     for (let i = 1; i < event.min; i++) roster.append(makeParticipant(false));
-    primary.querySelectorAll('.participant').forEach(updateIdentification);
+    primary.querySelectorAll('.participant').forEach((participant) => configureParticipant(participant, true));
     updateRoster();
   }
 }
 
-function collectPerson(fieldset) {
+function collectPerson(fieldset, index) {
   const person = {};
   fieldset.querySelectorAll('[name]').forEach((input) => { person[input.name] = input.value; });
+  if (eventSelect.value !== 'street-play' || index === 0) person.constituency = registrationConstituency.value;
+  if (eventSelect.value === 'cricket') person.gender = 'Male';
   return person;
 }
 
@@ -237,7 +256,8 @@ function renderReview(data) {
     item.className = 'review-person';
     const age = ageOnDate(person.dateOfBirth, today());
     const ageCategory = data.event === 'badminton' ? ` | Age category: ${age <= 30 ? '16–30' : age <= 50 ? '31–50' : '51 and above'}` : '';
-    item.textContent = `${index === 0 ? 'Primary participant' : `Participant ${index + 1}`}: ${person.fullName} | ${person.dateOfBirth} | ${person.gender} | ${person.phone} | ${person.constituency} | ${person.bloodGroup} | ${person.tshirtSize}${ageCategory}`;
+    const label = index === 0 ? (data.event === 'cricket' ? 'Team Leader / Captain' : 'Primary participant') : `Participant ${index + 1}`;
+    item.textContent = `${label}: ${person.fullName} | ${person.dateOfBirth} | ${person.gender} | ${person.phone} | ${person.constituency} | ${person.bloodGroup} | ${person.tshirtSize}${ageCategory}`;
     review.append(item);
   });
   const rules = `/rules/?event=${encodeURIComponent(events[data.event].rules || data.event)}`;
@@ -273,6 +293,14 @@ document.querySelector('#back').addEventListener('click', () => {
 });
 document.querySelector('#next').addEventListener('click', async () => {
   if (!validateVisibleStep()) return;
+  if (step === 3) {
+    const emailError = validateEmail(document.querySelector('#email').value);
+    if (emailError) {
+      error.textContent = emailError;
+      document.querySelector('#email').focus();
+      return;
+    }
+  }
   if (step === 2) {
     const nextButton = document.querySelector('#next');
     const backButton = document.querySelector('#back');
@@ -377,6 +405,7 @@ form.addEventListener('submit', async (event) => {
 
 primary.append(makeParticipant(true));
 primary.querySelector('legend').textContent = 'Primary participant';
+fillOptions(registrationConstituency, constituencies, 'Select constituency');
 document.querySelectorAll('[data-step] h2, #success h2').forEach((heading) => { heading.tabIndex = -1; });
 form.hidden = false;
 showStep(1);
