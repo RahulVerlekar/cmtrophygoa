@@ -254,7 +254,10 @@ category.addEventListener('change', () => {
   fillOptions(eventSelect, Object.entries(events).filter(([, event]) => event.category === category.value).map(([value, event]) => ({ value, label: event.name })), 'Select an event');
   configureEvent();
 });
-eventSelect.addEventListener('change', configureEvent);
+eventSelect.addEventListener('change', () => {
+  error.textContent = '';
+  configureEvent();
+});
 document.querySelector('#add-member').addEventListener('click', () => {
   if (roster.children.length < events[eventSelect.value].max - 1) {
     roster.append(makeParticipant(false));
@@ -268,8 +271,34 @@ document.querySelector('#back').addEventListener('click', () => {
   }
   showStep(step === 5 && events[eventSelect.value].max === 1 ? 3 : step - 1);
 });
-document.querySelector('#next').addEventListener('click', () => {
+document.querySelector('#next').addEventListener('click', async () => {
   if (!validateVisibleStep()) return;
+  if (step === 2) {
+    const nextButton = document.querySelector('#next');
+    const backButton = document.querySelector('#back');
+    nextButton.disabled = true;
+    backButton.disabled = true;
+    eventSelect.disabled = true;
+    error.textContent = 'Checking registration availability...';
+    try {
+      const result = await fetch(`/api/event-status?event=${encodeURIComponent(eventSelect.value)}`, { cache: 'no-store' });
+      if (!result.ok) throw new Error('Registration availability is unavailable.');
+      const status = await result.json();
+      if (typeof status.open !== 'boolean') throw new Error('Registration availability is invalid.');
+      if (!status.open) {
+        error.textContent = 'Registration for the selected event is not open now.';
+        return;
+      }
+    } catch (availabilityError) {
+      console.error('Registration availability could not be checked.');
+      error.textContent = 'Registration availability is temporarily unavailable. Please try again.';
+      return;
+    } finally {
+      nextButton.disabled = false;
+      backButton.disabled = false;
+      eventSelect.disabled = false;
+    }
+  }
   const next = step === 3 && events[eventSelect.value].max === 1 ? 5 : step + 1;
   if (next === 5) {
     const data = collectRegistration(true);

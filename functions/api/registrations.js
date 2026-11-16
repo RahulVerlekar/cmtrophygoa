@@ -94,6 +94,20 @@ export async function onRequestPost({ request, env }) {
     return response(502, { error: 'The submission status is unknown. Please contact the organisers before trying again.' });
   }
   if (!databaseResponse.ok) {
+    if (databaseResponse.status === 409 || databaseResponse.status === 503) {
+      try {
+        const databaseError = await databaseResponse.json();
+        if (databaseResponse.status === 409 && databaseError?.code === 'PT409') {
+          return response(409, { error: 'Registration for the selected event is not open now.' });
+        }
+        if (databaseResponse.status === 503 && databaseError?.code === 'PT503') {
+          console.error('Registration availability is missing.');
+          return response(503, { error: 'Registration availability is temporarily unavailable. Please try again.' });
+        }
+      } catch (error) {
+        console.error('Registration database error response could not be read.');
+      }
+    }
     console.error(`Registration database returned status ${databaseResponse.status}.`);
     return response(502, { error: 'The submission status is unknown. Please contact the organisers before trying again.' });
   }

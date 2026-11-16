@@ -13,6 +13,9 @@ const handlerSource = (await readFile(new URL('../functions/api/registrations.js
 const { onRequestPost } = await import(asModule(handlerSource));
 const configSource = await readFile(new URL('../functions/api/turnstile-config.js', import.meta.url), 'utf8');
 const { onRequestGet: getTurnstileConfig } = await import(asModule(configSource));
+const statusSource = (await readFile(new URL('../functions/api/event-status.js', import.meta.url), 'utf8'))
+  .replace("'../../public/register/events.js'", `'${eventsUrl}'`);
+const { onRequestGet: getEventStatus } = await import(asModule(statusSource));
 const env = { SUPABASE_URL: 'https://database.example.test', SUPABASE_SECRET_KEY: 'test-secret', TURNSTILE_SITE_KEY: 'test-site-key', TURNSTILE_SECRET_KEY: 'test-turnstile-secret' };
 
 const adult = {
@@ -29,6 +32,157 @@ const adult = {
 function registration(overrides = {}) {
   return { category: 'Sports', event: 'marathon', eventOption: '5 KM Run', participants: [{ ...adult }], consent: true, ...overrides };
 }
+
+const teamEvents = [
+  { event: 'cricket', category: 'Sports', min: 11, max: 15, gender: 'Male' },
+  { event: 'football-men', category: 'Sports', min: 11, max: 16, gender: 'Male' },
+  { event: 'football-women', category: 'Sports', min: 11, max: 16, gender: 'Female' },
+  { event: 'volleyball', category: 'Sports', min: 6, max: 12, gender: 'Male' },
+  { event: 'group-dance', category: 'Cultural', min: 6, max: 10 },
+  { event: 'fugdi', category: 'Cultural', min: 10, max: 14 },
+  { event: 'ghumat-aarti-men', category: 'Cultural', min: 8, max: 12, gender: 'Male' },
+  { event: 'ghumat-aarti-women', category: 'Cultural', min: 8, max: 12, gender: 'Female' },
+  { event: 'street-play', category: 'Cultural', min: 8, max: 15 }
+];
+
+function teamRegistration(event, count) {
+  const person = { ...adult, gender: event.gender || 'Female', collegeId: 'COLLEGE1' };
+  return registration({
+    category: event.category,
+    event: event.event,
+    teamName: 'Synthetic team',
+    collegeName: 'Synthetic college',
+    participants: Array.from({ length: count }, (_, index) => ({ ...person, fullName: `Test participant ${index + 1}`, epic: `TEST${index + 1}` }))
+  });
+}
+
+for (const event of teamEvents) {
+  test(`${event.event} validates team boundaries and participant eligibility`, () => {
+    const minTeam = teamRegistration(event, event.min);
+    const maxTeam = teamRegistration(event, event.max);
+    assert.equal(validateRegistration(minTeam, '2026-11-16'), null);
+    assert.equal(validateRegistration(maxTeam, '2026-11-16'), null);
+    assert.match(validateRegistration(teamRegistration(event, event.min - 1), '2026-11-16'), /participant\(s\)/);
+    assert.match(validateRegistration(teamRegistration(event, event.max + 1), '2026-11-16'), /participant\(s\)/);
+    assert.match(validateRegistration({ ...minTeam, teamName: ' ' }, '2026-11-16'), /team name/);
+
+    for (const field of ['fullName', 'dateOfBirth', 'gender', 'phone', 'constituency', 'bloodGroup', 'tshirtSize']) {
+      for (const index of [0, 1]) {
+        const invalid = teamRegistration(event, event.min);
+        invalid.participants[index][field] = '';
+        assert.match(validateRegistration(invalid, '2026-11-16'), index === 0 ? /Primary participant:/ : /Participant 2:/, field);
+      }
+    }
+    if (event.event === 'street-play') {
+      assert.match(validateRegistration({ ...minTeam, collegeName: '' }, '2026-11-16'), /college name/);
+      minTeam.participants[1].collegeId = '';
+      assert.match(validateRegistration(minTeam, '2026-11-16'), /college ID/);
+      minTeam.participants[1].collegeId = 'COLLEGE1';
+    }
+    for (const index of [0, 1]) {
+      const boundary = teamRegistration(event, event.min);
+      Object.assign(boundary.participants[index], { dateOfBirth: '2008-11-17', aadhaar: '123456789012', parentEpic: '', epic: '' });
+      assert.match(validateRegistration(boundary, '2026-11-16'), /parent's EPIC/);
+      boundary.participants[index].parentEpic = 'PARENT1';
+      assert.equal(validateRegistration(boundary, '2026-11-16'), null);
+      boundary.participants[index].dateOfBirth = '2008-11-16';
+      assert.match(validateRegistration(boundary, '2026-11-16'), /enter an EPIC/);
+      boundary.participants[index].epic = 'TEST1';
+      assert.equal(validateRegistration(boundary, '2026-11-16'), null);
+    }
+    minTeam.participants[1].epic = '';
+    assert.match(validateRegistration(minTeam, '2026-11-16'), /Participant 2: enter an EPIC/);
+    minTeam.participants[1].epic = 'TEST2';
+    minTeam.participants[1].constituency = 'Margao';
+    if (event.event === 'street-play') {
+      assert.equal(validateRegistration(minTeam, '2026-11-16'), null);
+    } else {
+      assert.match(validateRegistration(minTeam, '2026-11-16'), /same constituency/);
+      minTeam.participants[1].constituency = 'Panaji';
+    }
+    if (event.gender) {
+      minTeam.participants[1].gender = event.gender === 'Male' ? 'Female' : 'Male';
+      assert.match(validateRegistration(minTeam, '2026-11-16'), /gender must match/);
+      minTeam.participants[1].gender = event.gender;
+    }
+    Object.assign(minTeam.participants[1], { dateOfBirth: '2010-01-01', aadhaar: '123456789012', parentEpic: '' });
+    assert.match(validateRegistration(minTeam, '2026-11-16'), /parent's EPIC/);
+    minTeam.participants[1].parentEpic = 'PARENT1';
+    assert.equal(validateRegistration(minTeam, '2026-11-16'), null);
+    if (event.event !== 'street-play') {
+      minTeam.participants[1].aadhaar = '';
+      assert.match(validateRegistration(minTeam, '2026-11-16'), /Aadhaar/);
+      minTeam.participants[1].aadhaar = '123456789012';
+      minTeam.participants[1].dateOfBirth = '2011-01-01';
+      assert.match(validateRegistration(minTeam, '2026-11-16'), /at least 16/);
+    } else {
+      minTeam.participants[1].dateOfBirth = '2011-01-01';
+      assert.equal(validateRegistration(minTeam, '2026-11-16'), null);
+    }
+  });
+}
+
+test('the endpoint rejects incomplete teams before verification or storage', async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = () => { throw new Error('Invalid teams must not reach verification or storage'); };
+    for (const event of teamEvents) {
+      const data = teamRegistration(event, event.min - 1);
+      const request = new Request('https://example.test/api/registrations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, turnstileToken: 'test-token' })
+      });
+      const response = await onRequestPost({ request, env });
+      assert.equal(response.status, 400, event.event);
+      assert.match((await response.json()).error, /participant\(s\)/);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('all team events send every sanitized participant to storage after verification', async () => {
+  const originalFetch = globalThis.fetch;
+  const saved = [];
+  try {
+    globalThis.fetch = async (url, options) => {
+      if (url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify') {
+        return Response.json({ success: true, hostname: 'example.test', action: 'registration' });
+      }
+      assert.equal(url, 'https://database.example.test/rest/v1/cm_trophy_registrations');
+      saved.push(JSON.parse(options.body));
+      return new Response(null, { status: 201 });
+    };
+    for (const event of teamEvents) {
+      const data = teamRegistration(event, event.max);
+      const currentYear = Number(new Intl.DateTimeFormat('en', { timeZone: 'Asia/Kolkata', year: 'numeric' }).format(new Date()));
+      Object.assign(data.participants[1], { dateOfBirth: `${currentYear - 16}-01-01`, aadhaar: '123456789012', parentEpic: ' PARENT1 ' });
+      const request = new Request('https://example.test/api/registrations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, turnstileToken: 'test-token' })
+      });
+      const response = await onRequestPost({ request, env });
+      assert.equal(response.status, 201, event.event);
+      const row = saved.at(-1);
+      assert.equal(row.event, event.event);
+      assert.equal(row.details.participants.length, event.max);
+      assert.deepEqual(row.details.participants.map((person) => person.fullName), data.participants.map((person) => person.fullName));
+      assert.equal(row.details.participants[0].epic, 'TEST1');
+      assert.equal(row.details.teamName, 'Synthetic team');
+      if (event.event === 'street-play') {
+        assert.equal(row.details.collegeName, 'Synthetic college');
+        assert.ok(row.details.participants.every((person) => person.collegeId === 'COLLEGE1'));
+      }
+      assert.equal(row.details.participants[1].parentEpic, 'PARENT1');
+      assert.equal(Object.hasOwn(row.details.participants[1], 'epic'), false);
+      assert.equal(Object.hasOwn(row.details.participants[1], 'aadhaar'), event.event !== 'street-play');
+      assert.equal(Object.hasOwn(row.details, 'turnstileToken'), false);
+    }
+    assert.equal(saved.length, teamEvents.length);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('validates individual selections and required participant fields', () => {
   assert.equal(validateRegistration(registration(), '2026-11-16'), null);
@@ -94,6 +248,69 @@ test('exposes only the public verification key when configured', async () => {
   const config = getTurnstileConfig({ env });
   assert.deepEqual(await config.json(), { siteKey: 'test-site-key' });
   assert.equal(config.headers.get('Cache-Control'), 'no-store');
+});
+
+test('event status returns open or closed and fails closed on invalid or unavailable settings', async () => {
+  const originalFetch = globalThis.fetch;
+  const request = (event) => new Request(`https://example.test/api/event-status?event=${encodeURIComponent(event)}`);
+  try {
+    globalThis.fetch = async (url, options) => {
+      const parsed = new URL(url);
+      assert.equal(parsed.pathname, '/rest/v1/cm_trophy_event_settings');
+      assert.equal(parsed.searchParams.get('event'), 'eq.cricket');
+      assert.equal(options.headers.apikey, 'test-secret');
+      assert.equal(options.cache, 'no-store');
+      return Response.json([{ registration_open: true }]);
+    };
+    const open = await getEventStatus({ request: request('cricket'), env });
+    assert.deepEqual(await open.json(), { open: true });
+    assert.equal(open.headers.get('Cache-Control'), 'no-store');
+    globalThis.fetch = async () => Response.json([{ registration_open: false }]);
+    assert.deepEqual(await (await getEventStatus({ request: request('cricket'), env })).json(), { open: false });
+    assert.equal((await getEventStatus({ request: request('__proto__'), env })).status, 400);
+    assert.equal((await getEventStatus({ request: request('cricket'), env: {} })).status, 503);
+    for (const result of [[], [{ registration_open: 'false' }], [{ registration_open: true }, { registration_open: false }]]) {
+      globalThis.fetch = async () => Response.json(result);
+      assert.equal((await getEventStatus({ request: request('cricket'), env })).status, 503);
+    }
+    globalThis.fetch = async () => new Response(null, { status: 500 });
+    assert.equal((await getEventStatus({ request: request('cricket'), env })).status, 503);
+    globalThis.fetch = async () => { throw new Error('Network error'); };
+    assert.equal((await getEventStatus({ request: request('cricket'), env })).status, 503);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('submission reports a closed event or missing setting without a registration number', async () => {
+  const originalFetch = globalThis.fetch;
+  const request = () => new Request('https://example.test/api/registrations', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...registration(), turnstileToken: 'test-token' })
+  });
+  try {
+    for (const [status, code, message] of [
+      [409, 'PT409', /not open now/],
+      [503, 'PT503', /temporarily unavailable/]
+    ]) {
+      globalThis.fetch = async (url) => url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+        ? Response.json({ success: true, hostname: 'example.test', action: 'registration' })
+        : Response.json({ code }, { status });
+      const result = await onRequestPost({ request: request(), env });
+      assert.equal(result.status, status);
+      const body = await result.json();
+      assert.match(body.error, message);
+      assert.equal(Object.hasOwn(body, 'registrationNumber'), false);
+    }
+    globalThis.fetch = async (url) => url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+      ? Response.json({ success: true, hostname: 'example.test', action: 'registration' })
+      : Response.json({ code: '23505' }, { status: 409 });
+    const conflict = await onRequestPost({ request: request(), env });
+    assert.equal(conflict.status, 502);
+    assert.match((await conflict.json()).error, /status is unknown/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('rejects missing, invalid and unavailable security checks without writing', async () => {
