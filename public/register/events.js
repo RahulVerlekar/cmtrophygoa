@@ -26,7 +26,7 @@ export const events = {
 };
 
 export const marathonDistances = ['5 KM Run', '10 KM Run', '21 KM Half Marathon'];
-export const rangoliCategories = ['Traditional - Sanskar Bharti', 'Creative (Portrait)'];
+export const rangoliCategories = ['Traditional - Sanskar Bharti'];
 export const genders = ['Male', 'Female', 'Other'];
 export const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
 export const tshirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];

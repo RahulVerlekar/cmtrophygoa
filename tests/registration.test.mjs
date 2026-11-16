@@ -192,6 +192,12 @@ test('validates individual selections and required participant fields', () => {
   assert.match(validateRegistration(registration({ participants: [{ ...adult, dateOfBirth: '2024-02-31' }] }), '2026-11-16'), /date of birth/);
 });
 
+test('allows only the traditional Rangoli category', () => {
+  const rangoli = registration({ category: 'Cultural', event: 'rangoli', eventOption: 'Traditional - Sanskar Bharti' });
+  assert.equal(validateRegistration(rangoli, '2026-11-16'), null);
+  assert.match(validateRegistration({ ...rangoli, eventOption: 'Creative (Portrait)' }, '2026-11-16'), /rangoli category/);
+});
+
 test('email is optional and requires the same complete format for all registrations', () => {
   for (const email of ['', 'captain@example.com']) {
     assert.equal(validateRegistration(registration({ email }), '2026-11-16'), null);
