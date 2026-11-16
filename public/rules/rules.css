@@ -7,7 +7,6 @@ body { margin: 0; background: #fffaf0; color: #30251d; font-family: Arial, Helve
 h1 { margin: 0; color: #9c2c20; font-size: clamp(32px, 5vw, 48px); }
 #rules-message { line-height: 1.5; }
 #rules-message:empty { display: none; }
-.warning { padding: 14px; border-left: 4px solid #a71f22; background: #fff0cc; line-height: 1.5; }
 .registration { margin: 24px 0; }
 .registration[hidden] { display: none; }
 .registration a { display: inline-flex; gap: 24px; padding: 14px 22px; border-radius: 4px; background: #ba2c1e; color: #fff; font-weight: 700; text-decoration: none; }
