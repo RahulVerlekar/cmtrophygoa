@@ -1,5 +1,5 @@
-import { constituencies, events, marathonDistances, rangoliCategories, genders, bloodGroups, tshirtSizes } from './events.js';
-import { ageOnDate, validateEmail, validateRegistration } from './validation.js?v=registration-fields';
+import { constituencies, events, marathonDistances, rangoliCategories, requiresTeamName, genders, bloodGroups, tshirtSizes } from './events.js';
+import { ageOnDate, validateEmail, validateRegistration } from './validation.js?v=registration-null-check';
 
 const form = document.querySelector('#wizard');
 const category = document.querySelector('#category');
@@ -156,15 +156,17 @@ function updateRoster() {
     member.querySelector('.remove-member').disabled = members.length <= event.min - 1;
   });
   document.querySelector('#add-member').disabled = members.length >= event.max - 1;
-  document.querySelector('#roster-description').textContent = `Team size: ${event.min}–${event.max}, including the captain. Currently ${members.length + 1} participant(s).`;
+  document.querySelector('#roster-description').textContent = eventSelect.value === 'rangoli'
+    ? `One or two participants may register. Currently ${members.length + 1} participant(s).`
+    : `Team size: ${event.min}–${event.max}, including the captain. Currently ${members.length + 1} participant(s).`;
 }
 
 function configureEvent() {
   const event = events[eventSelect.value];
   optionLabel.hidden = true;
   eventOption.required = false;
-  teamNameLabel.hidden = !event || event.max === 1;
-  teamNameLabel.querySelector('input').required = !!event && event.max > 1;
+  teamNameLabel.hidden = !event || !requiresTeamName(event);
+  teamNameLabel.querySelector('input').required = !!event && requiresTeamName(event);
   collegeNameLabel.hidden = eventSelect.value !== 'street-play';
   collegeNameLabel.querySelector('input').required = eventSelect.value === 'street-play';
   if (!event) {
@@ -179,7 +181,9 @@ function configureEvent() {
   }
   document.querySelector('#event-description').textContent = eventSelect.value === 'marathon'
     ? 'This is an individual event. See the marathon information for event details.'
+    : eventSelect.value === 'rangoli' ? 'One or two participants may register.'
     : event.max > 1 ? `Team size: ${event.min}–${event.max}, including the captain.` : 'This is an individual event.';
+  document.querySelector('#roster-heading').textContent = eventSelect.value === 'rangoli' ? 'Additional participant' : 'Team roster';
   const primaryTitle = eventSelect.value === 'cricket' ? 'Team Leader / Captain' : 'Primary participant';
   document.querySelector('#primary-heading').textContent = primaryTitle;
   primary.querySelector('legend').textContent = primaryTitle;
@@ -206,7 +210,7 @@ function collectRegistration(confirmed = false) {
     category: category.value,
     event: eventSelect.value,
     eventOption: eventSelect.value === 'marathon' || eventSelect.value === 'rangoli' ? eventOption.value : '',
-    teamName: event?.max > 1 ? document.querySelector('#team-name').value : '',
+    teamName: event && requiresTeamName(event) ? document.querySelector('#team-name').value : '',
     collegeName: eventSelect.value === 'street-play' ? document.querySelector('#college-name').value : '',
     email: document.querySelector('#email').value,
     participants: [...primary.querySelectorAll('.participant'), ...roster.querySelectorAll('.participant')].map(collectPerson),

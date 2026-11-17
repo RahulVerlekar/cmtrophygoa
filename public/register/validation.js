@@ -1,10 +1,15 @@
-import { constituencies, events, marathonDistances, rangoliCategories, genders, bloodGroups, tshirtSizes } from './events.js';
+import { constituencies, events, marathonDistances, rangoliCategories, requiresTeamName, genders, bloodGroups, tshirtSizes } from './events.js';
 
 function isText(value, maxLength) {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength;
 }
 
+function containsNull(value) {
+  return typeof value === 'string' && value.includes('\0');
+}
+
 export function validateEmail(email) {
+  if (containsNull(email)) return 'Remove unsupported characters from the email address by retyping it.';
   if (email && (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
     return 'Enter a valid email address, or leave it blank.';
   }
@@ -25,19 +30,22 @@ export function validateRegistration(data, today = new Intl.DateTimeFormat('en-C
   const event = events[data.event];
   if (data.category !== event.category) return 'Select a valid category and event.';
   if (!Array.isArray(data.participants) || data.participants.length < event.min || data.participants.length > event.max) {
-    return `This event requires ${event.min === event.max ? event.min : `${event.min}–${event.max}`} participant(s), including the captain.`;
+    return `This event requires ${event.min === event.max ? event.min : `${event.min}–${event.max}`} participant(s)${data.event === 'rangoli' ? '.' : ', including the captain.'}`;
   }
-  if (event.max > 1 && !isText(data.teamName, 100)) return 'Enter a team name.';
+  if (requiresTeamName(event) && containsNull(data.teamName)) return 'Remove unsupported characters from the team name by retyping it.';
+  if (requiresTeamName(event) && !isText(data.teamName, 100)) return 'Enter a team name.';
   const emailError = validateEmail(data.email);
   if (emailError) return emailError;
   if (data.event === 'marathon' && !marathonDistances.includes(data.eventOption)) return 'Select a marathon distance.';
   if (data.event === 'rangoli' && !rangoliCategories.includes(data.eventOption)) return 'Select a rangoli category.';
+  if (data.event === 'street-play' && containsNull(data.collegeName)) return 'Remove unsupported characters from the college name by retyping it.';
   if (data.event === 'street-play' && !isText(data.collegeName, 150)) return 'Enter the college name.';
   const captainConstituency = data.participants[0]?.constituency;
 
   for (const [index, person] of data.participants.entries()) {
     const label = index === 0 ? 'Primary participant' : `Participant ${index + 1}`;
     if (!person || typeof person !== 'object' || !isText(person.fullName, 100)) return `${label}: enter a full name.`;
+    if (containsNull(person.fullName)) return `${label}: remove unsupported characters from the full name by retyping it.`;
     const age = ageOnDate(person.dateOfBirth, today);
     if (age === null) return `${label}: enter a valid date of birth.`;
     if (data.event !== 'street-play' && data.event !== 'marathon' && age < 16) return `${label}: participants must be at least 16 years old.`;
@@ -49,13 +57,16 @@ export function validateRegistration(data, today = new Intl.DateTimeFormat('en-C
     if (!bloodGroups.includes(person.bloodGroup)) return `${label}: select a blood group or Unknown.`;
     if (!tshirtSizes.includes(person.tshirtSize)) return `${label}: select a T-shirt size.`;
     if (data.event === 'street-play') {
+      if (containsNull(person.collegeId)) return `${label}: remove unsupported characters from the college ID number by retyping it.`;
       if (!isText(person.collegeId, 50)) return `${label}: enter a college ID number.`;
     }
     if (age < 18) {
       if (data.event !== 'street-play' && (typeof person.aadhaar !== 'string' || !/^\d{12}$/.test(person.aadhaar.replace(/\s/g, '')))) return `${label}: enter a 12-digit Aadhaar number.`;
+      if (containsNull(person.parentEpic)) return `${label}: remove unsupported characters from the parent's EPIC number by retyping it.`;
       if (!isText(person.parentEpic, 50)) return `${label}: enter a parent's EPIC number.`;
-    } else if (age >= 18 && !isText(person.epic, 50)) {
-      return `${label}: enter an EPIC number.`;
+    } else {
+      if (containsNull(person.epic)) return `${label}: remove unsupported characters from the EPIC number by retyping it.`;
+      if (!isText(person.epic, 50)) return `${label}: enter an EPIC number.`;
     }
   }
   if (data.consent !== true) return 'Confirm that you have read the rules and agree to submit the information.';
@@ -86,7 +97,7 @@ export function sanitizedRegistration(data, today) {
     return result;
   });
   const result = { category: event.category, event: data.event, participants, consent: true };
-  if (event.max > 1) result.teamName = data.teamName.trim();
+  if (requiresTeamName(event)) result.teamName = data.teamName.trim();
   if (data.email) result.email = data.email.trim();
   if (data.event === 'street-play') result.collegeName = data.collegeName.trim();
   if (data.event === 'marathon' || data.event === 'rangoli') result.eventOption = data.eventOption;

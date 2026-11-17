@@ -192,10 +192,44 @@ test('validates individual selections and required participant fields', () => {
   assert.match(validateRegistration(registration({ participants: [{ ...adult, dateOfBirth: '2024-02-31' }] }), '2026-11-16'), /date of birth/);
 });
 
-test('allows only the traditional Rangoli category', () => {
+test('allows one or two Rangoli participants in either category without a team name', () => {
   const rangoli = registration({ category: 'Cultural', event: 'rangoli', eventOption: 'Traditional - Sanskar Bharti' });
   assert.equal(validateRegistration(rangoli, '2026-11-16'), null);
-  assert.match(validateRegistration({ ...rangoli, eventOption: 'Creative (Portrait)' }, '2026-11-16'), /rangoli category/);
+  const pair = { ...rangoli, eventOption: 'Creative (Portrait)', participants: [{ ...adult }, { ...adult, fullName: 'Second participant' }] };
+  assert.equal(validateRegistration(pair, '2026-11-16'), null);
+  const result = sanitizedRegistration(pair, '2026-11-16');
+  assert.equal(result.data.eventOption, 'Creative (Portrait)');
+  assert.equal(result.data.participants.length, 2);
+  assert.equal(Object.hasOwn(result.data, 'teamName'), false);
+  assert.match(validateRegistration({ ...pair, eventOption: 'Other' }, '2026-11-16'), /rangoli category/);
+  assert.match(validateRegistration({ ...pair, participants: [] }, '2026-11-16'), /1–2 participant/);
+  assert.match(validateRegistration({ ...pair, participants: [...pair.participants, { ...adult }] }, '2026-11-16'), /1–2 participant/);
+  assert.match(validateRegistration({ ...pair, participants: [{ ...adult }, { ...adult, epic: '' }] }, '2026-11-16'), /Participant 2: enter an EPIC/);
+});
+
+test('the endpoint stores both Rangoli participants and the selected category', async (t) => {
+  let saved;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify') {
+      return Response.json({ success: true, hostname: 'example.test', action: 'registration' });
+    }
+    saved = JSON.parse(options.body);
+    return new Response(null, { status: 201 });
+  });
+  const data = registration({
+    category: 'Cultural', event: 'rangoli', eventOption: 'Creative (Portrait)',
+    participants: [{ ...adult }, { ...adult, fullName: 'Second participant' }]
+  });
+  const request = new Request('https://example.test/api/registrations', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...data, turnstileToken: 'test-token' })
+  });
+  const response = await onRequestPost({ request, env });
+  assert.equal(response.status, 201);
+  assert.equal(saved.details.eventOption, 'Creative (Portrait)');
+  assert.equal(saved.details.participants.length, 2);
+  assert.equal(saved.details.participants[1].fullName, 'Second participant');
+  assert.equal(Object.hasOwn(saved.details, 'teamName'), false);
 });
 
 test('email is optional and requires the same complete format for all registrations', () => {
@@ -204,6 +238,42 @@ test('email is optional and requires the same complete format for all registrati
   }
   for (const email of ['captain@example', 'captain@@example.com']) {
     assert.match(validateRegistration(registration({ email }), '2026-11-16'), /valid email address.*leave it blank/);
+  }
+});
+
+test('rejects null characters in saved free-text fields', () => {
+  const streetEvent = teamEvents.find((event) => event.event === 'street-play');
+  const cases = [
+    { data: registration({ email: 'person\0@example.com' }), message: /email address/ },
+    { data: registration({ participants: [{ ...adult, fullName: 'Test\0Name' }] }), message: /Primary participant:.*full name/ },
+    { data: registration({ participants: [{ ...adult, epic: 'TEST\0' }] }), message: /Primary participant:.*EPIC number/ },
+    { data: registration({ participants: [{ ...adult, dateOfBirth: '2010-01-01', aadhaar: '123456789012', parentEpic: 'TEST\0' }] }), message: /parent's EPIC/ },
+    { data: { ...teamRegistration(streetEvent, streetEvent.min), teamName: 'Team\0' }, message: /team name/ },
+    { data: { ...teamRegistration(streetEvent, streetEvent.min), collegeName: 'College\0' }, message: /college name/ },
+    { data: { ...teamRegistration(streetEvent, streetEvent.min), participants: Array.from({ length: streetEvent.min }, (_, index) => ({ ...adult, collegeId: index === 1 ? 'ID\0' : 'ID' })) }, message: /Participant 2:.*college ID/ }
+  ];
+  for (const { data, message } of cases) {
+    const error = validateRegistration(data, '2026-11-16');
+    assert.match(error, /unsupported characters/);
+    assert.match(error, message);
+  }
+  const valid = registration({ participants: [{ ...adult, fullName: 'José 😀' }] });
+  assert.equal(validateRegistration(valid, '2026-11-16'), null);
+});
+
+test('endpoint rejects null characters before verification and database access', async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = () => { throw new Error('Invalid registrations must not reach verification or storage'); };
+    const request = new Request('https://example.test/api/registrations', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...registration({ participants: [{ ...adult, epic: 'TEST\0' }] }), turnstileToken: 'test-token' })
+    });
+    const response = await onRequestPost({ request, env });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /unsupported characters.*EPIC/);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
 

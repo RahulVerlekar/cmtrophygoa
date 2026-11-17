@@ -21,12 +21,13 @@ export const events = {
   'ghumat-aarti-women': { name: "Ghumat Aarti (Women)", category: 'Cultural', rules: 'ghumat-aarti', gender: 'Female', min: 8, max: 12 },
   'street-play': { name: 'Street Play (Inter-collegiate)', category: 'Cultural', min: 8, max: 15 },
   'solo-singing': { name: 'Solo Singing', category: 'Cultural', min: 1, max: 1 },
-  rangoli: { name: 'Rangoli', category: 'Cultural', min: 1, max: 1 },
+  rangoli: { name: 'Rangoli', category: 'Cultural', min: 1, max: 2, teamNameRequired: false },
   painting: { name: 'Painting', category: 'Cultural', min: 1, max: 1 }
 };
 
 export const marathonDistances = ['5 KM Run', '10 KM Run', '21 KM Half Marathon'];
-export const rangoliCategories = ['Traditional - Sanskar Bharti'];
+export const rangoliCategories = ['Traditional - Sanskar Bharti', 'Creative (Portrait)'];
+export const requiresTeamName = (event) => event.max > 1 && event.teamNameRequired !== false;
 export const genders = ['Male', 'Female', 'Other'];
 export const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
 export const tshirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];

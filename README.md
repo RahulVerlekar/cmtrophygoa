@@ -26,6 +26,27 @@ Every participant aged 18 or older must provide their EPIC number; participants 
 
 Constituency is selected once at the start and applies to all participants, except street-play roster members, who provide their own. Cricket's Team Leader / Captain is the primary participant and counts toward the team size.
 
+Rangoli registrations allow one or two participants and do not require a team name. The event categories are Traditional - Sanskar Bharti and Creative (Portrait).
+
+## Export registrations to Google Sheets
+
+The local sync script reads a CSV export of the complete `cm_trophy_registrations` table. It does not connect to Supabase. It replaces the values in `Master`, `Summary`, `Constituency Counts` and one tab named by the event identifier per configured event, leaving other tabs alone. The master keeps the exported table columns and full registration JSON, but displays `created_at` in IST to the minute rather than its original CSV format. Event tabs contain one row per participant, grouped by each participant's constituency and ordered by the full registration timestamp (oldest first); displayed times are in IST to the minute. Event tabs show constituency and readable participant details first, followed by registration metadata and participant JSON. They omit the event column and show team names only for team events. The summary shows registration and participant counts overall and per event, the latest registration time, and when the sync started in IST (not the CSV export time). Constituency Counts shows overall registration and participant counts, registration counts per event, and the latest registration time for each constituency, including zeros. An entry is counted once in every constituency represented by its participants, so constituency entry counts can sum to more than the overall registration count. All cells are written as text, including IDs and values beginning with `=`. Each sync also sets header formatting, column widths and frozen rows on managed tabs.
+
+If upgrading from the previous script, rename existing managed tabs before syncing: remove `CM - ` from each tab name (for example, `CM - Master` becomes `Master` and `CM - cricket` becomes `cricket`). The script otherwise creates new tabs and leaves the old ones untouched.
+
+1. Use Node.js 18 or newer and run `npm ci` in this project.
+2. Enable the Google Sheets API in a Google Cloud project, create a service account and download its JSON key. Share the target spreadsheet with the service account's email address as an editor.
+3. Export the entire registration table from Supabase as CSV, including column headers. Keep both the export and the key **outside the repository**, with access restricted. Do not commit or share the key.
+4. Back up the spreadsheet if needed: changes made in managed tabs are overwritten on every run. Run:
+
+   ```sh
+   node scripts/sync-registrations.mjs /path/to/registrations.csv SPREADSHEET_ID /path/to/service-account.json
+   ```
+
+   The spreadsheet ID is the part of its URL between `/d/` and `/edit`. The script creates missing managed tabs and updates them in one batch. An empty or invalid export is rejected before any changes. If an update cannot be confirmed, check the sheet before retrying.
+
+The spreadsheet and CSV contain sensitive participant data. Restrict spreadsheet sharing to authorized accounts and securely remove local exports when no longer needed. Refresh by exporting the whole table again and rerunning the script; it does not run automatically.
+
 ## Run locally
 
 Serve the `public` directory with any static HTTP server to view the pages. For example:
