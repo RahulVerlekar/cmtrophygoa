@@ -28,6 +28,27 @@ Constituency is selected once at the start and applies to all participants, exce
 
 Rangoli registrations allow one or two participants and do not require a team name. The event categories are Traditional - Sanskar Bharti and Creative (Portrait).
 
+## Verification diagnostics
+
+The registration page reports Turnstile successes, failures (including the error code), and setup failures to `/api/verification-analytics`. The Pages Function writes only the outcome, code, browser family and major version, and OS family and major version to Cloudflare Analytics Engine. It does not write form data, full user-agent strings, IP addresses, or Turnstile tokens. Review the privacy notice and applicable requirements before enabling collection.
+
+1. In Cloudflare, open **Workers & Pages > this Pages project > Settings > Bindings > Add > Analytics engine**. Set the variable name to `VERIFICATION_ANALYTICS` and the dataset to `verification_events`; add it for the intended environment and redeploy. The dataset is created on the first write.
+2. Analytics failures do not block verification or registration. Without the binding, the endpoint responds with 503 and logs an error; events are not collected. Configure a separate dataset for preview if needed.
+3. Use the [Analytics Engine SQL API](https://developers.cloudflare.com/analytics/analytics-engine/sql-api/) to query the dataset. Create a token with **Account Analytics: Read** and keep it secret. For example, submit this query to the API:
+
+   ```sql
+   SELECT blob1 AS outcome, blob2 AS error_code,
+          blob3 AS browser, blob4 AS browser_major,
+          blob5 AS os, blob6 AS os_major,
+          SUM(_sample_interval) AS events
+   FROM verification_events
+   WHERE timestamp > NOW() - INTERVAL '7' DAY
+   GROUP BY outcome, error_code, browser, browser_major, os, os_major
+   ORDER BY events DESC
+   ```
+
+The browser and OS are inferred from the request's user-agent header, which may be unavailable or inaccurate. A widget can fail and later succeed, and manual retries create new widgets; failures are deduplicated by error code only within one widget. These are event counts, not unique visitors or a false-positive rate. Delivery is best-effort, and the public endpoint can receive spoofed events. Monitor usage and configure rate limiting appropriate to available Cloudflare rules without blocking legitimate registrations. Analytics requests consume the shared Workers quota; data is retained for three months under Cloudflare's current limits.
+
 ## Export registrations to Google Sheets
 
 The local sync script reads a CSV export of the complete `cm_trophy_registrations` table. It does not connect to Supabase. It replaces the values in `Master`, `Summary`, `Constituency Counts` and one tab named by the event identifier per configured event, leaving other tabs alone. The master keeps the exported table columns and full registration JSON, but displays `created_at` in IST to the minute rather than its original CSV format. Event tabs contain one row per participant, grouped by each participant's constituency and ordered by the full registration timestamp (oldest first); displayed times are in IST to the minute. Event tabs show constituency and readable participant details first, followed by registration metadata and participant JSON. They omit the event column and show team names only for team events. The summary shows registration and participant counts overall and per event, the latest registration time, and when the sync started in IST (not the CSV export time). Constituency Counts shows overall registration and participant counts, registration counts per event, and the latest registration time for each constituency, including zeros. An entry is counted once in every constituency represented by its participants, so constituency entry counts can sum to more than the overall registration count. All cells are written as text, including IDs and values beginning with `=`. Each sync also sets header formatting, column widths and frozen rows on managed tabs.

@@ -23,6 +23,22 @@ let turnstileWidget = null;
 let turnstileScript;
 let verificationAttempt = 0;
 
+function reportVerification(outcome, code) {
+  const data = { outcome };
+  if (outcome === 'failure') {
+    const value = String(code);
+    data.code = /^\d{6}$/.test(value) ? value : 'unknown';
+  }
+  fetch('/api/verification-analytics', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    keepalive: true
+  }).then((response) => {
+    if (!response.ok) console.warn('Verification analytics could not be recorded.');
+  }).catch(() => console.warn('Verification analytics could not be recorded.'));
+}
+
 function loadTurnstile() {
   if (!turnstileScript) {
     turnstileScript = new Promise((resolve, reject) => {
@@ -53,6 +69,8 @@ function clearVerification() {
 async function setupVerification() {
   clearVerification();
   const attempt = verificationAttempt;
+  const reportedFailures = new Set();
+  let reportedSuccess = false;
   verificationStatus.textContent = 'Loading security check...';
   retryVerification.hidden = true;
   try {
@@ -73,6 +91,10 @@ async function setupVerification() {
         turnstileToken = token;
         verificationStatus.textContent = 'Security check complete.';
         retryVerification.hidden = true;
+        if (!reportedSuccess) {
+          reportedSuccess = true;
+          reportVerification('success');
+        }
       },
       'expired-callback': () => {
         if (attempt !== verificationAttempt) return;
@@ -80,11 +102,16 @@ async function setupVerification() {
         verificationStatus.textContent = 'Security check expired. Please retry it.';
         retryVerification.hidden = false;
       },
-      'error-callback': () => {
+      'error-callback': (code) => {
         if (attempt !== verificationAttempt) return;
         turnstileToken = '';
         verificationStatus.textContent = 'Security check failed. Please retry it.';
         retryVerification.hidden = false;
+        const normalizedCode = /^\d{6}$/.test(String(code)) ? String(code) : 'unknown';
+        if (!reportedFailures.has(normalizedCode)) {
+          reportedFailures.add(normalizedCode);
+          reportVerification('failure', normalizedCode);
+        }
       }
     });
   } catch (setupError) {
@@ -92,6 +119,7 @@ async function setupVerification() {
     console.error('Registration security check could not be loaded.');
     verificationStatus.textContent = 'Security check could not be loaded. Please retry.';
     retryVerification.hidden = false;
+    reportVerification('setup_failure');
   }
 }
 
