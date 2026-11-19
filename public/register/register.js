@@ -24,24 +24,37 @@ let turnstileScript;
 let verificationAttempt = 0;
 
 function reportVerification(outcome, code) {
-  const data = { outcome };
-  if (outcome === 'failure') {
-    const value = String(code);
-    data.code = /^\d{6}$/.test(value) ? value : 'unknown';
-  }
-  if (outcome !== 'success') {
-    const person = primary.querySelector('.participant');
-    const name = person.querySelector('[name="fullName"]').value.trim();
-    if (name) {
-      data.name = name;
-      data.phone = person.querySelector('[name="phone"]').value.trim();
+  Promise.resolve().then(() => {
+    const data = { outcome };
+    if (outcome === 'failure') {
+      const value = String(code);
+      data.code = /^\d{6}$/.test(value) ? value : 'unknown';
     }
-  }
-  fetch('/api/verification-analytics', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-    keepalive: true
+    if (outcome !== 'success') {
+      const person = primary.querySelector('.participant');
+      const name = person.querySelector('[name="fullName"]').value.trim();
+      if (name) {
+        data.name = name;
+        data.phone = person.querySelector('[name="phone"]').value.trim();
+      }
+      const { width, height } = window.screen;
+      const language = navigator.language;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const connection = navigator.connection?.effectiveType;
+      data.device = {
+        screen: Number.isInteger(width) && width > 0 && width <= 99999 &&
+          Number.isInteger(height) && height > 0 && height <= 99999 ? `${width}x${height}` : '',
+        language: typeof language === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(language) ? language : '',
+        timezone: typeof timezone === 'string' && /^[A-Za-z0-9_+/-]{1,64}$/.test(timezone) ? timezone : '',
+        connection: ['slow-2g', '2g', '3g', '4g'].includes(connection) ? connection : ''
+      };
+    }
+    return fetch('/api/verification-analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      keepalive: true
+    });
   }).then((response) => {
     if (!response.ok) console.warn('Verification analytics could not be recorded.');
   }).catch(() => console.warn('Verification analytics could not be recorded.'));

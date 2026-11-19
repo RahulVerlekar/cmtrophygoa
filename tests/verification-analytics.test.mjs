@@ -10,21 +10,25 @@ function request(body, options = {}) {
   });
 }
 
-test('records failure contact and coarse browser details', async () => {
+test('records failure contact and available device diagnostics', async () => {
   let point;
   const env = { VERIFICATION_ANALYTICS: { writeDataPoint: (value) => { point = value; } } };
+  const userAgent = 'Mozilla/5.0 (Linux; Android 12; example-model) AppleWebKit/537.36 Chrome/110.0.0.0 Mobile Safari/537.36';
   const result = await onRequestPost({
-    request: request({ outcome: 'failure', code: '300010', name: ' Example User ', phone: '9999999999' }, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 12; private-device) AppleWebKit/537.36 Chrome/110.0.0.0 Mobile Safari/537.36' }
+    request: request({
+      outcome: 'failure', code: '300010', name: ' Example User ', phone: '9999999999',
+      device: { screen: '393x852', language: 'en-IN', timezone: 'Asia/Kolkata', connection: '4g' }
+    }, {
+      headers: { 'User-Agent': userAgent }
     }),
     env
   });
   assert.equal(result.status, 202);
   assert.deepEqual(point, {
     indexes: ['failure'],
-    blobs: ['failure', '300010', 'Chrome', '110', 'Android', '12', 'Example User', '9999999999']
+    blobs: ['failure', '300010', 'Chrome', '110', 'Android', '12', 'Example User', '9999999999',
+      userAgent, '393x852', 'en-IN', 'Asia/Kolkata', '4g']
   });
-  assert.ok(!JSON.stringify(point).includes('private-device'));
 });
 
 test('records setup failure with an optional phone and accepts older clients without contact fields', async () => {
@@ -33,11 +37,11 @@ test('records setup failure with an optional phone and accepts older clients wit
   assert.equal((await onRequestPost({
     request: request({ outcome: 'setup_failure', name: 'Example', phone: '' }), env
   })).status, 202);
-  assert.deepEqual(points[0].blobs.slice(6), ['Example', '']);
+  assert.deepEqual(points[0].blobs.slice(6), ['Example', '', '', '', '', '', '']);
   assert.equal((await onRequestPost({
     request: request({ outcome: 'failure', code: 'unknown' }), env
   })).status, 202);
-  assert.equal(points[1].blobs.length, 6);
+  assert.deepEqual(points[1].blobs.slice(6), ['', '', '', '', '', '', '']);
 });
 
 test('records success and setup failures without an error code', async () => {
@@ -48,6 +52,20 @@ test('records success and setup failures without an error code', async () => {
     assert.equal(result.status, 202);
   }
   assert.deepEqual(points.map((point) => point.blobs.slice(0, 2)), [['success', ''], ['setup_failure', '']]);
+  assert.equal(points[0].blobs.length, 6);
+});
+
+test('bounds user agent and accepts unavailable device details', async () => {
+  let point;
+  const env = { VERIFICATION_ANALYTICS: { writeDataPoint: (value) => { point = value; } } };
+  const device = { screen: '', language: '', timezone: '', connection: '' };
+  const result = await onRequestPost({
+    request: request({ outcome: 'setup_failure', device }, { headers: { 'User-Agent': 'x'.repeat(1100) } }),
+    env
+  });
+  assert.equal(result.status, 202);
+  assert.equal(point.blobs[8].length, 1024);
+  assert.deepEqual(point.blobs.slice(9), ['', '', '', '']);
 });
 
 test('rejects invalid events, extra fields, cross-origin and oversized bodies', async () => {
@@ -60,6 +78,11 @@ test('rejects invalid events, extra fields, cross-origin and oversized bodies', 
     { outcome: 'failure', code: '300010', name: 'x'.repeat(101), phone: '' },
     { outcome: 'failure', code: '300010', name: 'Private', phone: 'invalid' },
     { outcome: 'success', name: 'Private', phone: '' },
+    { outcome: 'success', device: { screen: '', language: '', timezone: '', connection: '' } },
+    { outcome: 'setup_failure', device: { screen: '', language: '', timezone: '', connection: '', extra: 'private' } },
+    { outcome: 'setup_failure', device: { screen: 'bad', language: '', timezone: '', connection: '' } },
+    { outcome: 'setup_failure', device: { screen: '', language: 'en-IN', timezone: 'Asia/Kolkata', connection: 'wifi' } },
+    { outcome: 'setup_failure', device: null },
     { outcome: 'failure', code: 'not-an-error-code' },
     { outcome: 'success', code: '300010' },
     { outcome: 'other' },
@@ -70,7 +93,7 @@ test('rejects invalid events, extra fields, cross-origin and oversized bodies', 
   assert.equal((await onRequestPost({
     request: request({ outcome: 'success' }, { headers: { Origin: 'https://other.example' } }), env
   })).status, 403);
-  assert.equal((await onRequestPost({ request: request('x'.repeat(1025)), env })).status, 413);
+  assert.equal((await onRequestPost({ request: request('x'.repeat(2049)), env })).status, 413);
   assert.equal(writes, 0);
 });
 

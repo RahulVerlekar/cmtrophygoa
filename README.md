@@ -30,7 +30,7 @@ Rangoli registrations allow one or two participants and do not require a team na
 
 ## Verification diagnostics
 
-The registration page reports Turnstile successes, failures (including the error code), and setup failures to `/api/verification-analytics`. On failures it also sends the primary participant's name and phone number (if entered). The Pages Function writes these fields, the outcome, code, browser family and major version, and OS family and major version to Cloudflare Analytics Engine. It does not write email, ID numbers, full user-agent strings, IP addresses, or Turnstile tokens. Contact details are collected before submission, even if the participant later abandons the form or succeeds. Review applicable privacy requirements and restrict access to analytics and query results.
+The registration page reports Turnstile successes, failures (including the error code), and setup failures to `/api/verification-analytics`. On failures it also sends the primary participant's name and phone number (if entered), screen dimensions, browser language, time zone and effective connection type when available. The Pages Function writes these fields, the outcome, code, browser family and major version, and OS family and major version to Cloudflare Analytics Engine. Failure events also include the request's user-agent string (up to 1,024 characters), which may include a device model; browser privacy restrictions may reduce its detail. The function does not write email, ID numbers, IP addresses, Turnstile tokens or a persistent device identifier. Contact details are collected before submission, even if the participant later abandons the form or succeeds. Review applicable privacy requirements and restrict access to analytics and query results.
 
 1. In Cloudflare, open **Workers & Pages > this Pages project > Settings > Bindings > Add > Analytics engine**. Set the variable name to `VERIFICATION_ANALYTICS` and the dataset to `verification_events`; add it for the intended environment and redeploy. The dataset is created on the first write.
 2. Analytics failures do not block verification or registration. Without the binding, the endpoint responds with 503 and logs an error; events are not collected. Configure a separate dataset for preview if needed.
@@ -53,14 +53,17 @@ To view recent failure contacts, use the same Analytics Engine SQL API:
    SELECT timestamp, blob1 AS outcome, blob2 AS error_code,
           blob3 AS browser, blob4 AS browser_major,
           blob5 AS os, blob6 AS os_major,
-          blob7 AS participant_name, blob8 AS phone, _sample_interval
+          blob7 AS participant_name, blob8 AS phone,
+          blob9 AS user_agent, blob10 AS screen,
+          blob11 AS language, blob12 AS timezone, blob13 AS connection,
+          _sample_interval
    FROM verification_events
    WHERE timestamp > NOW() - INTERVAL '7' DAY
      AND blob1 IN ('failure', 'setup_failure')
    ORDER BY timestamp DESC
    ```
 
-The seven-day query filter does **not** delete data: Analytics Engine retains it for three months under Cloudflare's current limits. Sampling can omit individual records, and earlier events do not include contact details.
+The screen dimensions are in CSS pixels. Connection is the browser's estimated effective network type (such as `4g`), not necessarily Wi-Fi or cellular, and is unavailable in some browsers. Empty fields mean the information was not available. The seven-day query filter does **not** delete data: Analytics Engine retains it for three months under Cloudflare's current limits. Sampling can omit individual records, and earlier events may not include contact or device details.
 
 The browser and OS are inferred from the request's user-agent header, which may be unavailable or inaccurate. A widget can fail and later succeed, and manual retries create new widgets; failures are deduplicated by error code only within one widget. These are event counts, not unique visitors or a false-positive rate. Delivery is best-effort, and the public endpoint can receive spoofed events. Avoid contacting someone solely because a report exists without checking whether they subsequently registered. Monitor usage and configure rate limiting appropriate to available Cloudflare rules without blocking legitimate registrations. Analytics requests consume the shared Workers quota.
 
