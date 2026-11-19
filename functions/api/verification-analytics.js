@@ -31,7 +31,7 @@ function browserDetails(userAgent) {
   return [...match(browserPatterns), ...match(osPatterns)];
 }
 
-export async function onRequestPost({ request, env }) {
+async function readEvent(request) {
   const origin = request.headers.get('Origin');
   if (origin && origin !== new URL(request.url).origin) return response(403, { error: 'Invalid request origin.' });
   if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
@@ -61,19 +61,31 @@ export async function onRequestPost({ request, env }) {
     return response(400, { error: 'Invalid analytics event.' });
   }
 
-  let data;
   try {
-    data = JSON.parse(text);
+    return { data: JSON.parse(text) };
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
     return response(400, { error: 'Invalid analytics event.' });
   }
+}
+
+export async function onRequestPost({ request, env }) {
+  const parsed = await readEvent(request);
+  if (parsed instanceof Response) return parsed;
+  const { data } = parsed;
   if (!data || typeof data !== 'object' || Array.isArray(data) ||
-      Object.keys(data).some((key) => key !== 'outcome' && key !== 'code') ||
+      Object.keys(data).some((key) => !['outcome', 'code', 'name', 'phone'].includes(key)) ||
       !['success', 'failure', 'setup_failure'].includes(data.outcome) ||
       (data.outcome === 'failure'
         ? typeof data.code !== 'string' || !/^(?:\d{6}|unknown)$/.test(data.code)
-        : Object.hasOwn(data, 'code'))) {
+        : Object.hasOwn(data, 'code')) ||
+      ((Object.hasOwn(data, 'name') || Object.hasOwn(data, 'phone')) &&
+        (data.outcome === 'success' ||
+          typeof data.name !== 'string' || !data.name.trim() || data.name.trim().length > 100 ||
+          data.name.includes('\0') ||
+          typeof data.phone !== 'string' ||
+          (data.phone !== '' && (!/^\+?[0-9 ()-]{7,20}$/.test(data.phone) ||
+            data.phone.replace(/\D/g, '').length < 7 || data.phone.replace(/\D/g, '').length > 15))))) {
     return response(400, { error: 'Invalid analytics event.' });
   }
   if (!env.VERIFICATION_ANALYTICS) {
@@ -83,9 +95,11 @@ export async function onRequestPost({ request, env }) {
 
   const details = browserDetails(request.headers.get('User-Agent') || '');
   try {
+    const blobs = [data.outcome, data.outcome === 'failure' ? data.code : '', ...details];
+    if (Object.hasOwn(data, 'name')) blobs.push(data.name.trim(), data.phone);
     env.VERIFICATION_ANALYTICS.writeDataPoint({
       indexes: [data.outcome],
-      blobs: [data.outcome, data.outcome === 'failure' ? data.code : '', ...details]
+      blobs
     });
   } catch (error) {
     console.error('Verification analytics could not be recorded.');

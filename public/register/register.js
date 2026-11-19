@@ -29,6 +29,14 @@ function reportVerification(outcome, code) {
     const value = String(code);
     data.code = /^\d{6}$/.test(value) ? value : 'unknown';
   }
+  if (outcome !== 'success') {
+    const person = primary.querySelector('.participant');
+    const name = person.querySelector('[name="fullName"]').value.trim();
+    if (name) {
+      data.name = name;
+      data.phone = person.querySelector('[name="phone"]').value.trim();
+    }
+  }
   fetch('/api/verification-analytics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
